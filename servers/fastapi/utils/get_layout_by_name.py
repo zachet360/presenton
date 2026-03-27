@@ -2,9 +2,10 @@ import aiohttp
 from fastapi import HTTPException
 from models.presentation_layout import PresentationLayoutModel
 from typing import List
+from utils.get_env import get_frontend_url_env
 
 async def get_layout_by_name(layout_name: str) -> PresentationLayoutModel:
-    url = f"http://localhost/api/template?group={layout_name}"
+    url = f"{get_frontend_url_env()}/api/template?group={layout_name}"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             if response.status != 200:

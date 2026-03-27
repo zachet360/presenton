@@ -150,3 +150,7 @@ def get_api_secret_key_env():
 
 def get_webhook_secret_env():
     return os.getenv("WEBHOOK_SECRET")
+
+
+def get_frontend_url_env():
+    return os.getenv("FRONTEND_URL", "http://localhost:3000")

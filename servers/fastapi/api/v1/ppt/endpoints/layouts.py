@@ -2,13 +2,14 @@ from fastapi import APIRouter, HTTPException
 import aiohttp
 from typing import List, Any
 from utils.get_layout_by_name import get_layout_by_name
+from utils.get_env import get_frontend_url_env
 from models.presentation_layout import PresentationLayoutModel
 
 LAYOUTS_ROUTER = APIRouter(prefix="/layouts", tags=["Layouts"])
 
 @LAYOUTS_ROUTER.get("/", summary="Get available layouts")
 async def get_layouts():
-    url = "http://localhost:3000/api/layouts"  # Adjust port if needed
+    url = f"{get_frontend_url_env()}/api/layouts"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             if response.status != 200:
