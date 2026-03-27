@@ -55,8 +55,9 @@ COPY start.js LICENSE NOTICE ./
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Expose the port
+# Expose the port (Railway sets PORT dynamically, defaults to 80)
 EXPOSE 80
+ENV PORT=80
 
 # Start the servers
 CMD ["node", "/app/start.js"]
