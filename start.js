@@ -108,6 +108,8 @@ const setupUserConfigFromEnv = () => {
     CODEX_REFRESH_TOKEN: existingConfig.CODEX_REFRESH_TOKEN,
     CODEX_TOKEN_EXPIRES: existingConfig.CODEX_TOKEN_EXPIRES,
     CODEX_ACCOUNT_ID: existingConfig.CODEX_ACCOUNT_ID,
+    YANDEX_CLOUD_FOLDER_ID: process.env.YANDEX_CLOUD_FOLDER_ID || existingConfig.YANDEX_CLOUD_FOLDER_ID,
+    YANDEX_API_KEY: process.env.YANDEX_API_KEY || existingConfig.YANDEX_API_KEY,
     API_SECRET_KEY: process.env.API_SECRET_KEY || existingConfig.API_SECRET_KEY,
     WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || existingConfig.WEBHOOK_SECRET,
   };

@@ -154,3 +154,11 @@ def get_webhook_secret_env():
 
 def get_frontend_url_env():
     return os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+
+def get_yandex_cloud_folder_id_env():
+    return os.getenv("YANDEX_CLOUD_FOLDER_ID")
+
+
+def get_yandex_api_key_env():
+    return os.getenv("YANDEX_API_KEY")

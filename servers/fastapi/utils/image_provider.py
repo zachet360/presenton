@@ -42,6 +42,10 @@ def is_tiered_selected() -> bool:
     return ImageProvider.TIERED == get_selected_image_provider()
 
 
+def is_yandex_selected() -> bool:
+    return ImageProvider.YANDEX == get_selected_image_provider()
+
+
 def get_selected_image_provider() -> ImageProvider | None:
     """
     Get the selected image provider from environment variables.

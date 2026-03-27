@@ -27,6 +27,7 @@ from utils.image_provider import (
     is_dalle3_selected,
     is_comfyui_selected,
     is_tiered_selected,
+    is_yandex_selected,
 )
 import uuid
 
@@ -43,6 +44,8 @@ class ImageGenerationService:
 
         if is_tiered_selected():
             return None  # tiered uses fetch_image_tiered directly
+        elif is_yandex_selected():
+            return None  # yandex uses fetch_image_yandex directly
         elif is_pixabay_selected():
             return self.get_image_from_pixabay
         elif is_pixels_selected():
@@ -78,6 +81,10 @@ class ImageGenerationService:
         # Tiered provider: route by image_type
         if is_tiered_selected():
             return await self.fetch_image_tiered(prompt, image_type or "photo")
+
+        # Yandex provider: search + YandexART
+        if is_yandex_selected():
+            return await self.fetch_image_yandex(prompt, image_type or "photo")
 
         if not self.image_gen_func:
             print("No image generation function found. Using placeholder image.")
@@ -169,6 +176,34 @@ class ImageGenerationService:
 
         except Exception as e:
             print(f"Tiered image fetch error: {e}")
+
+        return "/static/images/placeholder.jpg"
+
+    async def fetch_image_yandex(self, prompt: ImagePrompt, image_type: str) -> str | ImageAsset:
+        """Yandex provider: illustration → YandexART, others → Yandex Image Search."""
+        from services.yandex_image_service import YandexImageService
+
+        image_prompt = prompt.get_image_prompt(with_theme=image_type == "illustration")
+        print(f"Yandex image fetch: type={image_type} prompt={image_prompt}")
+
+        yandex = YandexImageService()
+        try:
+            result = await yandex.get_image(image_prompt, self.output_directory, image_type)
+            if result:
+                if result.startswith("http"):
+                    return result
+                elif os.path.exists(result):
+                    return ImageAsset(
+                        path=result,
+                        is_uploaded=False,
+                        extras={
+                            "prompt": prompt.prompt,
+                            "theme_prompt": prompt.theme_prompt,
+                            "image_type": image_type,
+                        },
+                    )
+        except Exception as e:
+            print(f"Yandex image fetch error: {e}")
 
         return "/static/images/placeholder.jpg"
 
