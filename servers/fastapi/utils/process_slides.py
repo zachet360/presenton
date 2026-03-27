@@ -21,11 +21,13 @@ async def process_slide_and_fetch_assets(
 
     for image_path in image_paths:
         __image_prompt__parent = get_dict_at_path(slide.content, image_path)
+        image_type = __image_prompt__parent.get("__image_type__")
         async_tasks.append(
             image_generation_service.generate_image(
                 ImagePrompt(
                     prompt=__image_prompt__parent["__image_prompt__"],
-                )
+                ),
+                image_type=image_type,
             )
         )
 
@@ -124,7 +126,8 @@ async def process_old_and_new_slides_and_fetch_assets(
             image_generation_service.generate_image(
                 ImagePrompt(
                     prompt=new_image["__image_prompt__"],
-                )
+                ),
+                image_type=new_image.get("__image_type__"),
             )
         )
         new_images_fetch_status.append(True)
