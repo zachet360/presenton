@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import aiohttp
@@ -14,8 +15,19 @@ from utils.asset_directory_utils import get_exports_directory
 from utils.get_env import get_frontend_url_env
 import uuid
 
+# Limit concurrent Puppeteer exports (each spawns a Chromium browser)
+_export_semaphore = asyncio.Semaphore(2)
+
 
 async def export_presentation(
+    presentation_id: uuid.UUID, title: str, export_as: Literal["pptx", "pdf"]
+) -> PresentationAndPath:
+    async with _export_semaphore:
+        print(f"[Export] Acquired semaphore for {presentation_id} ({export_as})")
+        return await _do_export(presentation_id, title, export_as)
+
+
+async def _do_export(
     presentation_id: uuid.UUID, title: str, export_as: Literal["pptx", "pdf"]
 ) -> PresentationAndPath:
     if export_as == "pptx":

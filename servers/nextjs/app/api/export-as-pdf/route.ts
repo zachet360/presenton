@@ -38,12 +38,18 @@ export async function POST(req: NextRequest) {
   }
 
   await page.setViewport({ width: 1280, height: 720 });
-  page.setDefaultNavigationTimeout(300000);
-  page.setDefaultTimeout(300000);
+  page.setDefaultNavigationTimeout(120000);
+  page.setDefaultTimeout(120000);
+
+  // Abort image requests that take too long
+  await page.setRequestInterception(true);
+  page.on('request', (req) => {
+    try { req.continue(); } catch {}
+  });
 
   await page.goto(`http://localhost:${process.env.NGINX_PORT || process.env.PORT || '80'}/pdf-maker?id=${id}`, {
-    waitUntil: "networkidle0",
-    timeout: 300000,
+    waitUntil: "networkidle2",
+    timeout: 120000,
   });
 
   await page.waitForFunction('() => document.readyState === "complete"');

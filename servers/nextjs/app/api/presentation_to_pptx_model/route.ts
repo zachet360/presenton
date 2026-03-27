@@ -102,12 +102,32 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
   }
 
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
-  page.setDefaultNavigationTimeout(300000);
-  page.setDefaultTimeout(300000);
+  page.setDefaultNavigationTimeout(120000);
+  page.setDefaultTimeout(120000);
 
-  // Debug: log failed requests and API responses
+  // Abort image requests that take too long (prevents hanging on dead servers)
+  await page.setRequestInterception(true);
+  const pendingRequests = new Map<string, NodeJS.Timeout>();
+  page.on('request', (req) => {
+    const resourceType = req.resourceType();
+    if (resourceType === 'image' || resourceType === 'media') {
+      const timeout = setTimeout(() => {
+        try { req.abort('timedout'); } catch {}
+        pendingRequests.delete(req.url());
+        console.log(`[Puppeteer] Aborted slow image: ${req.url().slice(0, 80)}`);
+      }, 10000);
+      pendingRequests.set(req.url(), timeout);
+    }
+    try { req.continue(); } catch {}
+  });
+  page.on('requestfinished', (req) => {
+    const t = pendingRequests.get(req.url());
+    if (t) { clearTimeout(t); pendingRequests.delete(req.url()); }
+  });
   page.on('requestfailed', (req) => {
-    console.error(`[Puppeteer] Request failed: ${req.url()} - ${req.failure()?.errorText}`);
+    const t = pendingRequests.get(req.url());
+    if (t) { clearTimeout(t); pendingRequests.delete(req.url()); }
+    console.error(`[Puppeteer] Request failed: ${req.url().slice(0, 80)} - ${req.failure()?.errorText}`);
   });
   page.on('response', (res) => {
     const url = res.url();
@@ -119,8 +139,8 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
   const targetUrl = `http://localhost:${process.env.NGINX_PORT || process.env.PORT || '80'}/pdf-maker?id=${id}`;
   console.log(`[Puppeteer] Navigating to: ${targetUrl}`);
   await page.goto(targetUrl, {
-    waitUntil: "networkidle0",
-    timeout: 300000,
+    waitUntil: "networkidle2",
+    timeout: 120000,
   });
   return [browser, page];
 }
