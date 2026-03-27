@@ -218,7 +218,7 @@ class ImageGenerationService:
 
     async def generate_image_openai(
         self, prompt: str, output_directory: str, model: str, quality: str,
-        max_retries: int = 5,
+        max_retries: int = 10,
     ) -> str:
         import re
         from openai import RateLimitError
@@ -239,9 +239,10 @@ class ImageGenerationService:
                     f.write(base64.b64decode(result.data[0].b64_json))
                 return image_path
             except RateLimitError as e:
-                retry_match = re.search(r"try again in (\d+)", str(e))
-                wait = int(retry_match.group(1)) + 1 if retry_match else 15 * (attempt + 1)
-                print(f"Rate limited ({model}), retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
+                retry_match = re.search(r"try again in (\d+\.?\d*)", str(e))
+                base_wait = float(retry_match.group(1)) if retry_match else 15.0
+                wait = base_wait + 5 * attempt
+                print(f"Rate limited ({model}), waiting {wait:.0f}s (attempt {attempt + 1}/{max_retries})")
                 await asyncio.sleep(wait)
         raise Exception(f"Rate limit retries exhausted for {model}")
 
