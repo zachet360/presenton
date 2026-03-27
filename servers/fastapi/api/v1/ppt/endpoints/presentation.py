@@ -998,7 +998,7 @@ async def _generate_from_document_task(
 
         topic = metadata.get("topic", "")
         work_type = metadata.get("work_type", "essay")
-        n_slides = metadata.get("n_slides", 10)
+        n_slides = 1  # TODO: restore metadata.get("n_slides", 10)
         language = metadata.get("language", "Russian")
         include_title_slide = metadata.get("include_title_slide", True)
         include_toc = metadata.get("include_toc_slide", False)
