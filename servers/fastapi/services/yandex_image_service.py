@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import json
 import os
 import uuid
 import xml.etree.ElementTree as ET
@@ -16,7 +17,7 @@ class YandexImageService:
 
     def _get_headers(self) -> dict:
         api_key = get_yandex_api_key_env()
-        print(f"[Yandex] Using API key: {api_key[:8]}...{api_key[-4:]}" if api_key and len(api_key) > 12 else f"[Yandex] API key: {api_key}")
+        print(f"[Yandex] API key: {api_key[:8]}...{api_key[-4:]}" if api_key and len(api_key) > 12 else f"[Yandex] API key: {api_key}")
         return {
             "Authorization": f"Api-Key {api_key}",
             "Content-Type": "application/json",
@@ -35,10 +36,10 @@ class YandexImageService:
         words = query.split()
 
         for attempt in range(3):
-            if attempt == 1 and len(words) > 1:
-                query = " ".join(words[:-1])
-                print(f"[Yandex Search] Simplified query (attempt 2): '{query}'")
-            elif attempt == 2:
+            if attempt == 1 and len(words) > 2:
+                query = " ".join(words[:3])
+                print(f"[Yandex Search] Shortened query (attempt 2): '{query}'")
+            elif attempt == 2 and len(words) > 1:
                 query = " ".join(words[:2])
                 print(f"[Yandex Search] Minimal query (attempt 3): '{query}'")
 
@@ -71,10 +72,15 @@ class YandexImageService:
                             error = await resp.text()
                             print(f"[Yandex Search] Error response: {error[:500]}")
                             return None
-                        xml_text = await resp.text()
-                        print(f"[Yandex Search] Got XML response ({len(xml_text)} bytes)")
+                        response_text = await resp.text()
+                        print(f"[Yandex Search] Got response ({len(response_text)} bytes)")
             except Exception as e:
                 print(f"[Yandex Search] Request exception: {type(e).__name__}: {e}")
+                return None
+
+            xml_text = self._extract_xml_from_response(response_text)
+            if not xml_text:
+                print(f"[Yandex Search] Could not extract XML from response")
                 return None
 
             url = self._parse_image_url_from_xml(xml_text)
@@ -84,6 +90,30 @@ class YandexImageService:
             print(f"[Yandex Search] 0 results for '{query}' (attempt {attempt + 1}/3)")
 
         print(f"[Yandex Search] All 3 attempts failed")
+        return None
+
+    def _extract_xml_from_response(self, response_text: str) -> str | None:
+        """Extract XML from Yandex API response. Response is JSON with base64-encoded XML in rawData."""
+        # Try JSON with base64 rawData first
+        try:
+            data = json.loads(response_text)
+            raw_data = data.get("rawData")
+            if raw_data:
+                xml_bytes = base64.b64decode(raw_data)
+                xml_text = xml_bytes.decode("utf-8")
+                print(f"[Yandex Search] Decoded base64 rawData → XML ({len(xml_text)} bytes)")
+                return xml_text
+            print(f"[Yandex Search] JSON response but no rawData. Keys: {list(data.keys())[:10]}")
+            return None
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # Maybe it's already XML
+        if response_text.strip().startswith("<?xml") or response_text.strip().startswith("<"):
+            print(f"[Yandex Search] Response is raw XML")
+            return response_text
+
+        print(f"[Yandex Search] Unknown response format. Preview: {response_text[:200]}")
         return None
 
     def _parse_image_url_from_xml(self, xml_text: str) -> str | None:
@@ -96,19 +126,12 @@ class YandexImageService:
                     if elem.text and elem.text.startswith("http"):
                         urls_found.append(elem.text)
             if urls_found:
-                print(f"[Yandex Search] Parsed {len(urls_found)} URLs from XML, using first")
+                print(f"[Yandex Search] Parsed {len(urls_found)} image URLs from XML")
                 return urls_found[0]
-            # Fallback: try finding <doc> elements
-            for doc in root.iter():
-                if doc.tag.endswith("}doc") or doc.tag == "doc":
-                    for child in doc:
-                        if (child.tag.endswith("}url") or child.tag == "url") and child.text:
-                            print(f"[Yandex Search] Found URL via <doc> fallback")
-                            return child.text
-            print(f"[Yandex Search] No URLs found in XML. Root tag: {root.tag}, children: {[c.tag for c in root][:10]}")
+            print(f"[Yandex Search] No URLs in XML. Root: {root.tag}, children: {[c.tag for c in root][:10]}")
         except ET.ParseError as e:
             print(f"[Yandex Search] XML parse error: {e}")
-            print(f"[Yandex Search] XML preview: {xml_text[:500]}")
+            print(f"[Yandex Search] XML preview: {xml_text[:300]}")
         return None
 
     async def generate_image(self, prompt: str, output_directory: str) -> str | None:
@@ -136,25 +159,23 @@ class YandexImageService:
                     json=body,
                     timeout=aiohttp.ClientTimeout(total=15),
                 ) as resp:
-                    print(f"[YandexART] Submit response status: {resp.status}")
+                    print(f"[YandexART] Submit status: {resp.status}")
                     if resp.status != 200:
                         error = await resp.text()
                         print(f"[YandexART] Submit error: {error[:500]}")
                         return None
                     result = await resp.json()
-                    print(f"[YandexART] Submit response: {result}")
 
                 operation_id = result.get("id")
                 if not operation_id:
-                    print("[YandexART] No operation_id in response")
+                    print(f"[YandexART] No operation_id. Response: {result}")
                     return None
                 print(f"[YandexART] Operation ID: {operation_id}")
 
                 for poll_num in range(30):  # 30 * 2s = 60s max
                     await asyncio.sleep(2)
-                    poll_url = f"{self.OPERATION_URL}/{operation_id}"
                     async with session.get(
-                        poll_url,
+                        f"{self.OPERATION_URL}/{operation_id}",
                         headers={"Authorization": headers["Authorization"]},
                         timeout=aiohttp.ClientTimeout(total=10),
                     ) as poll_resp:
@@ -168,15 +189,15 @@ class YandexImageService:
                         if done:
                             image_b64 = poll_data.get("response", {}).get("image")
                             if not image_b64:
-                                print(f"[YandexART] Done but no image. Response keys: {list(poll_data.get('response', {}).keys())}")
+                                print(f"[YandexART] Done but no image. Keys: {list(poll_data.get('response', {}).keys())}")
                                 return None
                             image_path = os.path.join(output_directory, f"{uuid.uuid4()}.jpg")
                             with open(image_path, "wb") as f:
                                 f.write(base64.b64decode(image_b64))
-                            print(f"[YandexART] Image saved: {image_path} ({len(image_b64)} bytes b64)")
+                            print(f"[YandexART] Saved: {image_path} ({len(image_b64)} b64 bytes)")
                             return image_path
 
-                print("[YandexART] Timeout after 60s polling")
+                print("[YandexART] Timeout after 60s")
                 return None
 
         except Exception as e:
@@ -193,7 +214,6 @@ class YandexImageService:
             print(f"[Yandex] Routing to YandexART (illustration)")
             result = await self.generate_image(prompt, output_directory)
             if result:
-                print(f"[Yandex] YandexART success")
                 return result
             print(f"[Yandex] YandexART failed, falling back to search")
             return await self.search_image(prompt)
@@ -201,7 +221,6 @@ class YandexImageService:
         print(f"[Yandex] Routing to Yandex Image Search ({image_type})")
         result = await self.search_image(prompt)
         if result:
-            print(f"[Yandex] Search success")
             return result
 
         print(f"[Yandex] Search failed, falling back to YandexART")
