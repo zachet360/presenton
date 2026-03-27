@@ -116,7 +116,7 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
     }
   });
 
-  const targetUrl = `http://localhost:${process.env.PORT || '80'}/pdf-maker?id=${id}`;
+  const targetUrl = `http://localhost:${process.env.NGINX_PORT || process.env.PORT || '80'}/pdf-maker?id=${id}`;
   console.log(`[Puppeteer] Navigating to: ${targetUrl}`);
   await page.goto(targetUrl, {
     waitUntil: "networkidle0",
