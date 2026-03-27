@@ -260,9 +260,16 @@ async function getSlidesAndSpeakerNotes(page: Page) {
 }
 
 async function getSlidesWrapper(page: Page): Promise<ElementHandle<Element>> {
+  try {
+    await page.waitForSelector("#presentation-slides-wrapper", { timeout: 60000 });
+  } catch {
+    const url = page.url();
+    const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) || "empty");
+    throw new ApiError(`Presentation slides not found. Page URL: ${url}. Body: ${bodyText}`);
+  }
   const slides_wrapper = await page.$("#presentation-slides-wrapper");
   if (!slides_wrapper) {
-    throw new ApiError("Presentation slides not found");
+    throw new ApiError("Presentation slides not found after waitForSelector");
   }
   return slides_wrapper;
 }
