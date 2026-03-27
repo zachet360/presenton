@@ -17,7 +17,7 @@ from google.genai.types import (
     FunctionCallingConfigMode as GoogleFunctionCallingConfigMode,
 )
 from google.genai.types import Tool as GoogleTool
-from anthropic import AsyncAnthropic, APIStatusError as AnthropicAPIStatusError
+from anthropic import AsyncAnthropic
 from anthropic.types import Message as AnthropicMessage
 from anthropic import MessageStreamEvent as AnthropicMessageStreamEvent
 from enums.llm_provider import LLMProvider
@@ -1331,9 +1331,9 @@ class LLMClient:
                                 )
                             )
                 break  # success
-            except AnthropicAPIStatusError as e:
-                if not yielded and e.status_code == 529 and attempt < max_retries - 1:
-                    wait = 5 * (attempt + 1)
+            except Exception as e:
+                if not yielded and "overloaded" in str(e).lower() and attempt < max_retries - 1:
+                    wait = 10 * (attempt + 1)
                     print(f"Anthropic overloaded, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
                     await asyncio.sleep(wait)
                     continue
@@ -2186,9 +2186,9 @@ class LLMClient:
                                 )
                             )
                 break  # success
-            except AnthropicAPIStatusError as e:
-                if not yielded and e.status_code == 529 and attempt < max_retries - 1:
-                    wait = 5 * (attempt + 1)
+            except Exception as e:
+                if not yielded and "overloaded" in str(e).lower() and attempt < max_retries - 1:
+                    wait = 10 * (attempt + 1)
                     print(f"Anthropic overloaded, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
                     await asyncio.sleep(wait)
                     continue
