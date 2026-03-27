@@ -30,6 +30,13 @@ export async function POST(req: NextRequest) {
     ],
   });
   const page = await browser.newPage();
+
+  if (process.env.API_SECRET_KEY) {
+    await page.setExtraHTTPHeaders({
+      'Authorization': `Bearer ${process.env.API_SECRET_KEY}`,
+    });
+  }
+
   await page.setViewport({ width: 1280, height: 720 });
   page.setDefaultNavigationTimeout(300000);
   page.setDefaultTimeout(300000);

@@ -95,6 +95,12 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
 
   const page = await browser.newPage();
 
+  if (process.env.API_SECRET_KEY) {
+    await page.setExtraHTTPHeaders({
+      'Authorization': `Bearer ${process.env.API_SECRET_KEY}`,
+    });
+  }
+
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
   page.setDefaultNavigationTimeout(300000);
   page.setDefaultTimeout(300000);
