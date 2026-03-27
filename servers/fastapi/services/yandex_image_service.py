@@ -28,8 +28,35 @@ class YandexImageService:
         print(f"[Yandex] Folder ID: {folder_id}")
         return folder_id
 
-    async def search_image(self, query: str) -> str | None:
-        """Search Yandex Images. Returns image URL or None."""
+    async def _download_image(self, url: str, output_directory: str) -> str | None:
+        """Download image from URL to local file. Returns local path or None."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status != 200:
+                        print(f"[Yandex Search] Download failed ({resp.status}): {url[:80]}")
+                        return None
+                    data = await resp.read()
+                    if len(data) < 1000:
+                        print(f"[Yandex Search] Image too small ({len(data)} bytes), skipping: {url[:80]}")
+                        return None
+                    ext = "jpg"
+                    ct = resp.headers.get("Content-Type", "")
+                    if "png" in ct:
+                        ext = "png"
+                    elif "webp" in ct:
+                        ext = "webp"
+                    path = os.path.join(output_directory, f"{uuid.uuid4()}.{ext}")
+                    with open(path, "wb") as f:
+                        f.write(data)
+                    print(f"[Yandex Search] Downloaded {len(data)} bytes → {path}")
+                    return path
+        except Exception as e:
+            print(f"[Yandex Search] Download error for {url[:80]}: {type(e).__name__}: {e}")
+            return None
+
+    async def search_image(self, query: str, output_directory: str) -> str | None:
+        """Search Yandex Images. Downloads first result locally. Returns file path or None."""
         print(f"[Yandex Search] Starting search for: '{query}'")
         headers = self._get_headers()
         folder_id = self._get_folder_id()
@@ -83,11 +110,18 @@ class YandexImageService:
                 print(f"[Yandex Search] Could not extract XML from response")
                 return None
 
-            url = self._parse_image_url_from_xml(xml_text)
-            if url:
-                print(f"[Yandex Search] Found image: {url[:100]}")
-                return url
-            print(f"[Yandex Search] 0 results for '{query}' (attempt {attempt + 1}/3)")
+            urls = self._parse_image_urls_from_xml(xml_text)
+            if not urls:
+                print(f"[Yandex Search] 0 results for '{query}' (attempt {attempt + 1}/3)")
+                continue
+
+            # Try downloading each URL until one succeeds
+            for i, url in enumerate(urls):
+                print(f"[Yandex Search] Trying URL {i + 1}/{len(urls)}: {url[:80]}")
+                local_path = await self._download_image(url, output_directory)
+                if local_path:
+                    return local_path
+            print(f"[Yandex Search] All {len(urls)} URLs failed to download (attempt {attempt + 1}/3)")
 
         print(f"[Yandex Search] All 3 attempts failed")
         return None
@@ -116,8 +150,8 @@ class YandexImageService:
         print(f"[Yandex Search] Unknown response format. Preview: {response_text[:200]}")
         return None
 
-    def _parse_image_url_from_xml(self, xml_text: str) -> str | None:
-        """Extract first image URL from Yandex Search XML response."""
+    def _parse_image_urls_from_xml(self, xml_text: str) -> list[str]:
+        """Extract image URLs from Yandex Search XML response."""
         try:
             root = ET.fromstring(xml_text)
             urls_found = []
@@ -127,12 +161,12 @@ class YandexImageService:
                         urls_found.append(elem.text)
             if urls_found:
                 print(f"[Yandex Search] Parsed {len(urls_found)} image URLs from XML")
-                return urls_found[0]
+                return urls_found
             print(f"[Yandex Search] No URLs in XML. Root: {root.tag}, children: {[c.tag for c in root][:10]}")
         except ET.ParseError as e:
             print(f"[Yandex Search] XML parse error: {e}")
             print(f"[Yandex Search] XML preview: {xml_text[:300]}")
-        return None
+        return []
 
     async def generate_image(self, prompt: str, output_directory: str) -> str | None:
         """Generate image with YandexART. Returns file path or None."""
@@ -216,10 +250,10 @@ class YandexImageService:
             if result:
                 return result
             print(f"[Yandex] YandexART failed, falling back to search")
-            return await self.search_image(prompt)
+            return await self.search_image(prompt, output_directory)
 
         print(f"[Yandex] Routing to Yandex Image Search ({image_type})")
-        result = await self.search_image(prompt)
+        result = await self.search_image(prompt, output_directory)
         if result:
             return result
 
