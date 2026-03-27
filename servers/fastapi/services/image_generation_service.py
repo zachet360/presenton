@@ -217,21 +217,33 @@ class ImageGenerationService:
         return None
 
     async def generate_image_openai(
-        self, prompt: str, output_directory: str, model: str, quality: str
+        self, prompt: str, output_directory: str, model: str, quality: str,
+        max_retries: int = 5,
     ) -> str:
+        import re
+        from openai import RateLimitError
+
         client = AsyncOpenAI()
-        result = await client.images.generate(
-            model=model,
-            prompt=prompt,
-            n=1,
-            quality=quality,
-            response_format="b64_json" if model == "dall-e-3" else NOT_GIVEN,
-            size="1024x1024",
-        )
-        image_path = os.path.join(output_directory, f"{uuid.uuid4()}.png")
-        with open(image_path, "wb") as f:
-            f.write(base64.b64decode(result.data[0].b64_json))
-        return image_path
+        for attempt in range(max_retries):
+            try:
+                result = await client.images.generate(
+                    model=model,
+                    prompt=prompt,
+                    n=1,
+                    quality=quality,
+                    response_format="b64_json" if model == "dall-e-3" else NOT_GIVEN,
+                    size="1024x1024",
+                )
+                image_path = os.path.join(output_directory, f"{uuid.uuid4()}.png")
+                with open(image_path, "wb") as f:
+                    f.write(base64.b64decode(result.data[0].b64_json))
+                return image_path
+            except RateLimitError as e:
+                retry_match = re.search(r"try again in (\d+)", str(e))
+                wait = int(retry_match.group(1)) + 1 if retry_match else 15 * (attempt + 1)
+                print(f"Rate limited ({model}), retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
+                await asyncio.sleep(wait)
+        raise Exception(f"Rate limit retries exhausted for {model}")
 
     async def generate_image_openai_dalle3(
         self, prompt: str, output_directory: str
