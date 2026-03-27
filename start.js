@@ -196,8 +196,6 @@ const startServers = async () => {
 // Prepare nginx config with dynamic PORT
 const prepareNginxConfig = () => {
   const nginxPort = process.env.PORT || "80";
-  // Expose to child processes (Next.js overrides PORT to its own port)
-  process.env.NGINX_PORT = nginxPort;
   const nginxConfPath = "/etc/nginx/nginx.conf";
 
   try {
@@ -240,6 +238,9 @@ const main = async () => {
   if (canChangeKeys) {
     setupUserConfigFromEnv();
   }
+
+  // Set NGINX_PORT before spawning servers (Next.js overrides PORT to its own port)
+  process.env.NGINX_PORT = process.env.PORT || "80";
 
   startServers();
   startNginx();
