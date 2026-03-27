@@ -104,7 +104,21 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
   page.setDefaultNavigationTimeout(300000);
   page.setDefaultTimeout(300000);
-  await page.goto(`http://localhost:${process.env.PORT || '80'}/pdf-maker?id=${id}`, {
+
+  // Debug: log failed requests and API responses
+  page.on('requestfailed', (req) => {
+    console.error(`[Puppeteer] Request failed: ${req.url()} - ${req.failure()?.errorText}`);
+  });
+  page.on('response', (res) => {
+    const url = res.url();
+    if (url.includes('/api/')) {
+      console.log(`[Puppeteer] API response: ${res.status()} ${url}`);
+    }
+  });
+
+  const targetUrl = `http://localhost:${process.env.PORT || '80'}/pdf-maker?id=${id}`;
+  console.log(`[Puppeteer] Navigating to: ${targetUrl}`);
+  await page.goto(targetUrl, {
     waitUntil: "networkidle0",
     timeout: 300000,
   });
