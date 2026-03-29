@@ -30,10 +30,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from constants.presentation import DEFAULT_TEMPLATES
-from models.presentation_outline_model import (
-    PresentationOutlineModel,
-    SlideOutlineModel,
-)
+from models.presentation_outline_model import SlideOutlineModel
 from models.presentation_structure_model import PresentationStructureModel
 from models.sql.async_presentation_generation_status import (
     AsyncPresentationGenerationTaskModel,
@@ -47,7 +44,10 @@ from services.temp_file_service import TEMP_FILE_SERVICE
 from utils.asset_directory_utils import get_images_directory
 from utils.export_utils import export_presentation
 from utils.get_layout_by_name import get_layout_by_name
-from utils.llm_calls.generate_presentation_outlines import generate_ppt_outline
+from api.v1.zachet.generate_outlines import (
+    generate_zachet_outlines,
+    ZachetPresentationOutlineModel,
+)
 from utils.llm_calls.generate_presentation_structure import (
     generate_presentation_structure,
 )
@@ -135,14 +135,7 @@ async def _generate_from_document_task(
         # Build content prompt from document
         content = f"Topic: {topic}\nWork type: {work_type}\n\nDocument content:\n{document_text}"
 
-        # Build presentation context for per-slide generation
-        presentation_context = (
-            f"Presentation topic: {topic}\n"
-            f"Work type: {work_type}\n"
-            f"Document excerpt: {document_text[:500]}"
-        )
-
-        # 2. Generate outlines
+        # 2. Generate outlines (with source_excerpt per slide)
         if async_status:
             async_status.message = "Generating presentation outlines"
             async_status.updated_at = datetime.now()
@@ -159,7 +152,7 @@ async def _generate_from_document_task(
             )
 
         presentation_outlines_text = ""
-        async for chunk in generate_ppt_outline(
+        async for chunk in generate_zachet_outlines(
             content,
             n_slides_to_generate,
             language,
@@ -168,7 +161,6 @@ async def _generate_from_document_task(
             "standard",
             None,  # instructions
             include_title_slide,
-            False,  # web_search
         ):
             if isinstance(chunk, HTTPException):
                 raise chunk
@@ -181,7 +173,7 @@ async def _generate_from_document_task(
         except Exception:
             raise Exception("Failed to parse presentation outlines from LLM")
 
-        presentation_outlines = PresentationOutlineModel(**presentation_outlines_json)
+        presentation_outlines = ZachetPresentationOutlineModel(**presentation_outlines_json)
         total_outlines = n_slides_to_generate
 
         # 3. Select layout and structure
@@ -271,6 +263,16 @@ async def _generate_from_document_task(
         slide_layout_indices = presentation_structure.slides
         slide_layouts = [layout_model.slides[idx] for idx in slide_layout_indices]
 
+        # Build per-slide presentation context from source_excerpt
+        def _slide_context(i: int) -> str:
+            slide_outline = presentation_outlines.slides[i]
+            excerpt = getattr(slide_outline, "source_excerpt", "") or ""
+            return (
+                f"Presentation topic: {topic}\n"
+                f"Work type: {work_type}\n"
+                f"Source document excerpt for this slide:\n{excerpt}"
+            )
+
         batch_size = 10
         for start in range(0, len(slide_layouts), batch_size):
             end = min(start + batch_size, len(slide_layouts))
@@ -282,7 +284,7 @@ async def _generate_from_document_task(
                     tone,
                     "standard",
                     None,
-                    presentation_context,
+                    _slide_context(i),
                 )
                 for i in range(start, end)
             ]
