@@ -1,17 +1,17 @@
 # Presenton x zachet.ai Integration Report
 
 ## New Files
+- **`servers/fastapi/api/v1/zachet/router.py`** - Isolated zachet.ai endpoints (extracted from presentation.py for upstream merge safety)
+  - `POST /api/v1/ppt/presentation/generate-from-document` - accepts multipart/form-data with .docx file, `callback_url`, and `metadata` JSON. Returns `{presentation_id, status: "processing"}` immediately, runs generation in background
+  - `GET /api/v1/ppt/presentation/{id}/status` - returns `{status, progress (0-100), message}` for polling fallback
+  - `GET /api/v1/ppt/presentation/{id}/export/pptx` - direct file download
+  - `GET /api/v1/ppt/presentation/{id}/export/pdf` - direct file download
+  - Background task with webhook callback on completion/failure
+  - Random template selection from DEFAULT_TEMPLATES on each call
+- **`servers/fastapi/api/v1/zachet/__init__.py`** - Package init
 - **`servers/fastapi/services/wikimedia_provider.py`** - Wikimedia Commons image search provider for educational diagrams/schemas
 
-## Modified Files (12 total)
-
-### 1. API Endpoint: `generate-from-document`
-**`servers/fastapi/api/v1/ppt/endpoints/presentation.py`** (+488 lines)
-- `POST /api/v1/ppt/presentation/generate-from-document` - accepts multipart/form-data with .docx file, `callback_url`, and `metadata` JSON. Returns `{presentation_id, status: "processing"}` immediately, runs generation in background
-- `GET /api/v1/ppt/presentation/{id}/status` - returns `{status, progress (0-100), message}` for polling fallback
-- `GET /api/v1/ppt/presentation/{id}/export/pptx` - direct file download
-- `GET /api/v1/ppt/presentation/{id}/export/pdf` - direct file download
-- Background task with webhook callback on completion/failure
+## Modified Files
 
 ### 2. Tiered Image System
 **`servers/fastapi/enums/image_provider.py`** - Added `TIERED = "tiered"` enum value
