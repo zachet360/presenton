@@ -162,6 +162,12 @@ async def generate_zachet_outlines(
         ),
     ]
 
+    # Each slide: ~500 content + ~2000 excerpt = ~2500 chars ≈ ~700 tokens
+    # Plus summary ~1500 chars ≈ ~400 tokens, plus JSON overhead
+    # Estimate ~800 tokens per slide + 500 base
+    estimated_tokens = 500 + n_slides * 800
+    max_tokens = max(estimated_tokens, 8000)
+
     try:
         async for chunk in client.stream_structured(
             model,
@@ -169,6 +175,7 @@ async def generate_zachet_outlines(
             response_model.model_json_schema(),
             strict=True,
             tools=None,
+            max_tokens=max_tokens,
         ):
             yield chunk
     except Exception as e:
