@@ -263,13 +263,16 @@ async def _generate_from_document_task(
         slide_layout_indices = presentation_structure.slides
         slide_layouts = [layout_model.slides[idx] for idx in slide_layout_indices]
 
-        # Build per-slide presentation context from source_excerpt
+        # Build per-slide presentation context from summary + source_excerpt
+        document_summary = getattr(presentation_outlines, "summary", "") or ""
+
         def _slide_context(i: int) -> str:
             slide_outline = presentation_outlines.slides[i]
             excerpt = getattr(slide_outline, "source_excerpt", "") or ""
             return (
                 f"Presentation topic: {topic}\n"
                 f"Work type: {work_type}\n"
+                f"Document summary:\n{document_summary}\n\n"
                 f"Source document excerpt for this slide:\n{excerpt}"
             )
 

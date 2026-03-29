@@ -35,6 +35,10 @@ class ZachetSlideOutlineModel(SlideOutlineModel):
 
 
 class ZachetPresentationOutlineModel(PresentationOutlineModel):
+    summary: str = Field(
+        default="",
+        description="Structured summary of the entire source document: main thesis, key sections, conclusions.",
+    )
     slides: List[ZachetSlideOutlineModel]
 
 
@@ -52,6 +56,11 @@ def _get_schema_with_n_slides(n_slides: int):
         )
 
     class _Outline(ZachetPresentationOutlineModel):
+        summary: str = Field(
+            description="Structured summary of the entire source document. Include: main thesis/topic, key sections with their core arguments, important data points, and conclusions. This summary will be provided to the slide content generator for overall context.",
+            min_length=200,
+            max_length=1500,
+        )
         slides: List[_Slide] = Field(
             description="List of slide outlines",
             min_items=n_slides,
@@ -92,6 +101,12 @@ def _system_prompt(
         - Do not generate table of contents slide.
         - Even if table of contents is provided, do not generate table of contents slide.
         {"- Always make first slide a title slide." if include_title_slide else "- Do not include title slide in the presentation."}
+
+        # Document Summary Rules
+        The `summary` field must contain a structured summary of the ENTIRE source document.
+        - Include: main thesis/topic, key sections with their core arguments, important data points and statistics, conclusions.
+        - Write in the same language as the document.
+        - This summary will be provided to the slide content generator as overall context, so make it comprehensive.
 
         # Source Excerpt Rules
         For every slide, the `source_excerpt` field MUST contain verbatim text copied directly from the source document.
