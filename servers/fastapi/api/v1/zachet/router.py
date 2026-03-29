@@ -48,6 +48,7 @@ from api.v1.zachet.generate_outlines import (
     generate_zachet_outlines,
     ZachetPresentationOutlineModel,
 )
+from api.v1.zachet.generate_image_prompt import generate_image_prompt
 from utils.llm_calls.generate_presentation_structure import (
     generate_presentation_structure,
 )
@@ -86,6 +87,49 @@ async def _send_callback(callback_url: str, payload: dict):
                 print(f"Callback to {callback_url}: status={resp.status}")
     except Exception as e:
         print(f"Callback error to {callback_url}: {e}")
+
+
+async def _refine_image_prompts(
+    slides: List[SlideModel],
+    outlines: ZachetPresentationOutlineModel,
+    document_summary: str,
+):
+    """Replace __image_prompt__ in each slide with an LLM-optimised search query."""
+    from utils.dict_utils import get_dict_paths_with_key, get_dict_at_path
+
+    tasks = []
+    task_targets = []  # (slide_index, image_dict) for each task
+
+    for i, slide in enumerate(slides):
+        image_paths = get_dict_paths_with_key(slide.content, "__image_prompt__")
+        if not image_paths:
+            continue
+
+        outline = outlines.slides[i] if i < len(outlines.slides) else None
+        excerpt = getattr(outline, "source_excerpt", "") if outline else ""
+
+        for path in image_paths:
+            image_dict = get_dict_at_path(slide.content, path)
+            image_type = image_dict.get("__image_type__", "photo")
+            tasks.append(
+                generate_image_prompt(
+                    slide_content=slide.content,
+                    image_type=image_type,
+                    source_excerpt=excerpt,
+                    document_summary=document_summary,
+                )
+            )
+            task_targets.append(image_dict)
+
+    if not tasks:
+        return
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for image_dict, result in zip(task_targets, results):
+        if isinstance(result, str) and result.strip():
+            image_dict["__image_prompt__"] = result
+        # on error — keep the original __image_prompt__ from LLM #3
 
 
 # ──────────────────────────────────────────────────────────────
@@ -304,6 +348,15 @@ async def _generate_from_document_task(
                     content=slide_content,
                 )
                 slides.append(slide)
+
+        # 5.1. Regenerate image prompts with full slide context (LLM #4)
+        if async_status:
+            async_status.message = "Optimising image search queries"
+            async_status.updated_at = datetime.now()
+            sql_session.add(async_status)
+            await sql_session.commit()
+
+        await _refine_image_prompts(slides, presentation_outlines, document_summary)
 
         if async_status:
             async_status.message = "Fetching assets for slides"
