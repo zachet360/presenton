@@ -191,8 +191,8 @@ def _override_title_image_prompt(slides: List[SlideModel]):
         title = slide.content.get("title", "")
         subtitle = slide.content.get("subtitle", "")
         img["__image_prompt__"] = (
-            f"красивая абстрактная обложка для презентации на тему: {title}. "
-            f"{subtitle}. Профессиональный минималистичный дизайн, градиент"
+            f"обложка презентации: {title}. {subtitle}. "
+            f"Изображение должно быть релевантным теме и подходить как титульное"
         )
         img["__image_type__"] = "illustration"
 
