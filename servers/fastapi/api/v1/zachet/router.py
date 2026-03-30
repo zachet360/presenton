@@ -174,7 +174,7 @@ async def _generate_from_document_task(
         include_title_slide = metadata.get("include_title_slide", True)
         include_toc = metadata.get("include_toc_slide", False)
         tone = metadata.get("tone", "educational")
-        template = random.choice(DEFAULT_TEMPLATES)
+        template = "zachet"
 
         # Build content prompt from document
         content = f"Topic: {topic}\nWork type: {work_type}\n\nDocument content:\n{document_text}"
@@ -231,7 +231,18 @@ async def _generate_from_document_task(
         total_slide_layouts = len(layout_model.slides)
 
         if layout_model.ordered:
-            presentation_structure = layout_model.to_presentation_structure()
+            # For ordered templates (e.g. zachet): first=title, last=closing,
+            # middle slides cycle through content layouts (indices 1..N-2).
+            middle_layouts = list(range(1, total_slide_layouts - 1)) or [0]
+            slides: List[int] = []
+            for i in range(total_outlines):
+                if i == 0:
+                    slides.append(0)
+                elif i == total_outlines - 1:
+                    slides.append(total_slide_layouts - 1)
+                else:
+                    slides.append(middle_layouts[(i - 1) % len(middle_layouts)])
+            presentation_structure = PresentationStructureModel(slides=slides)
         else:
             presentation_structure = await generate_presentation_structure(
                 presentation_outlines,
@@ -240,14 +251,14 @@ async def _generate_from_document_task(
                 False,
             )
 
-        presentation_structure.slides = presentation_structure.slides[:total_outlines]
-        for index in range(total_outlines):
-            random_slide_index = random.randint(0, total_slide_layouts - 1)
-            if index >= total_outlines:
-                presentation_structure.slides.append(random_slide_index)
-                continue
-            if presentation_structure.slides[index] >= total_slide_layouts:
-                presentation_structure.slides[index] = random_slide_index
+            presentation_structure.slides = presentation_structure.slides[:total_outlines]
+            for index in range(total_outlines):
+                random_slide_index = random.randint(0, total_slide_layouts - 1)
+                if index >= total_outlines:
+                    presentation_structure.slides.append(random_slide_index)
+                    continue
+                if presentation_structure.slides[index] >= total_slide_layouts:
+                    presentation_structure.slides[index] = random_slide_index
 
         # Handle TOC
         if include_toc:

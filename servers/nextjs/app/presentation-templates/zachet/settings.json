@@ -1,0 +1,5 @@
+{
+    "description": "Zachet.ai custom layouts with strict text limits to prevent overflow",
+    "ordered": true,
+    "default": false
+}
