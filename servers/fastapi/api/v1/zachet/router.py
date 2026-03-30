@@ -102,7 +102,7 @@ async def _refine_image_prompts(
     tasks = []
     task_targets = []  # (slide_index, image_dict) for each task
 
-    SKIP_LAYOUTS = {"zachet:zachet-metrics-slide", "zachet:zachet-title-slide"}
+    SKIP_LAYOUTS = {"zachet:zachet-title-slide"}
 
     for i, slide in enumerate(slides):
         # Skip slides with manually crafted prompts
@@ -147,7 +147,7 @@ def _clamp_illustration_count(slides: List[SlideModel], target: int = 1):
     """
     from utils.dict_utils import get_dict_paths_with_key, get_dict_at_path
 
-    SKIP_LAYOUTS = {"zachet:zachet-metrics-slide", "zachet:zachet-title-slide"}
+    SKIP_LAYOUTS = {"zachet:zachet-title-slide"}
     illustration_dicts: list = []
     photo_dicts: list = []
 
@@ -155,7 +155,7 @@ def _clamp_illustration_count(slides: List[SlideModel], target: int = 1):
 
     for slide in eligible_slides:
         if slide.layout in SKIP_LAYOUTS:
-            continue  # title and metrics handled separately
+            continue  # title handled separately
         image_paths = get_dict_paths_with_key(slide.content, "__image_prompt__")
         for path in image_paths:
             image_dict = get_dict_at_path(slide.content, path)
@@ -197,35 +197,6 @@ def _override_title_image_prompt(slides: List[SlideModel]):
         img["__image_type__"] = "photo"
 
 
-def _override_metrics_image_prompts(slides: List[SlideModel]):
-    """For metrics slides: craft a YandexART prompt from actual metric values
-    and force __image_type__='illustration'."""
-    METRICS_LAYOUT = "zachet:zachet-metrics-slide"
-
-    for slide in slides:
-        if slide.layout != METRICS_LAYOUT:
-            continue
-        img = slide.content.get("image")
-        if not isinstance(img, dict):
-            continue
-
-        metrics = slide.content.get("metrics", [])
-        if not metrics:
-            continue
-
-        # Build prompt from actual data
-        parts = []
-        for m in metrics:
-            if isinstance(m, dict):
-                parts.append(f"{m.get('value', '')} {m.get('label', '')}")
-        metrics_text = ", ".join(parts)
-
-        title = slide.content.get("title", "")
-        img["__image_prompt__"] = (
-            f"инфографика диаграмма: {title}. {metrics_text}. "
-            f"Красивая визуализация данных, круговая или столбчатая диаграмма"
-        )
-        img["__image_type__"] = "illustration"
 
 
 def _set_image_orientation(
@@ -521,9 +492,8 @@ async def _generate_from_document_task(
             if isinstance(img, dict) and "__image_prompt__" in img and not img.get("__image_type__"):
                 img["__image_type__"] = "photo"
 
-        # 5.0.2 Override image prompts for title and metrics slides
+        # 5.0.2 Override image prompt for title slide
         _override_title_image_prompt(slides)
-        _override_metrics_image_prompts(slides)
 
         # 5.1. Regenerate image prompts with full slide context (LLM #4)
         if async_status:

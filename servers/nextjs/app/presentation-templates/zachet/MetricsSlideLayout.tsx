@@ -1,10 +1,9 @@
 import React from 'react'
 import * as z from "zod";
-import { ImageSchema } from '../defaultSchemes';
 
 export const layoutId = 'zachet-metrics-slide'
-export const layoutName = 'Metrics with Infographic'
-export const layoutDescription = 'A slide for showcasing key numbers and statistics on the left with a YandexART-generated infographic on the right. Best for highlighting quantitative data, KPIs, or achievements.'
+export const layoutName = 'Metrics'
+export const layoutDescription = 'A slide for showcasing key numbers, statistics, or metrics in a grid layout. Best for highlighting quantitative data, KPIs, or achievements. No images.'
 
 const metricsSlideSchema = z.object({
     title: z.string().min(3).max(60).default('Key Metrics').meta({
@@ -28,12 +27,6 @@ const metricsSlideSchema = z.object({
         { value: '150+', label: 'Projects', description: 'Total number of completed projects' },
         { value: '24/7', label: 'Availability', description: 'Round-the-clock service availability' },
     ]).meta({ description: "List of metrics to display" }),
-    image: ImageSchema.default({
-        __image_url__: '',
-        __image_prompt__: 'statistics infographic chart',
-    }).meta({
-        description: "AI-generated infographic visualizing the metrics data",
-    }),
 })
 
 export const Schema = metricsSlideSchema
@@ -48,7 +41,7 @@ const MetricsSlideLayout: React.FC<MetricsSlideLayoutProps> = ({ data: slideData
         <>
             <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
             <div
-                className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video relative z-20 mx-auto overflow-hidden flex"
+                className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video relative z-20 mx-auto overflow-hidden flex flex-col"
                 style={{ fontFamily: 'var(--body-font-family, Montserrat)', background: 'var(--background-color, #FFFFFF)' }}
             >
                 {((slideData as any)?.__companyName__ || (slideData as any)?._logo_url__) && (
@@ -63,58 +56,46 @@ const MetricsSlideLayout: React.FC<MetricsSlideLayoutProps> = ({ data: slideData
                     </div>
                 )}
 
-                {/* Left: Title + Metrics */}
-                <div className="w-[50%] flex flex-col justify-center px-[52px] pt-[60px] pb-[40px]">
+                <div className="flex-1 flex flex-col justify-center px-[72px] pt-[60px] pb-[40px]">
                     <h1
-                        className="font-bold mb-2"
-                        style={{ fontSize: '42px', letterSpacing: '-1px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
+                        className="font-bold mb-2 text-center"
+                        style={{ fontSize: '43px', letterSpacing: '-2px', color: 'var(--background-text, #002BB2)' }}
                     >
                         {slideData?.title || 'Key Metrics'}
                     </h1>
                     {slideData?.description && (
-                        <p className="mb-5" style={{ fontSize: '15px', lineHeight: '1.6', color: 'var(--background-text, #002BB2)', opacity: 0.7 }}>
+                        <p className="text-center mb-8 max-w-2xl mx-auto" style={{ fontSize: '15px', lineHeight: '1.6', color: 'var(--background-text, #002BB2)', opacity: 0.7 }}>
                             {slideData.description}
                         </p>
                     )}
-                    <div className="flex flex-col gap-[16px]">
+
+                    <div className={`grid gap-[20px] max-w-4xl mx-auto w-full ${metrics.length <= 2 ? 'grid-cols-2' : metrics.length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
                         {metrics.map((metric, i) => (
                             <div
                                 key={i}
-                                className="flex items-center gap-4 p-4 rounded"
+                                className="text-center p-[28px] rounded"
                                 style={{ background: 'var(--card-color, #F7F8FF)', border: '1px solid var(--stroke, #F0F0F2)' }}
                             >
                                 <div
-                                    className="text-3xl font-bold flex-shrink-0 min-w-[70px] text-center"
-                                    style={{ color: 'var(--primary-color, #1F4CD9)' }}
+                                    className="font-bold mb-3"
+                                    style={{ fontSize: '40px', color: 'var(--primary-color, #1F4CD9)' }}
                                 >
                                     {metric.value}
                                 </div>
-                                <div>
-                                    <div className="text-sm font-semibold" style={{ color: 'var(--background-text, #002BB2)' }}>
-                                        {metric.label}
-                                    </div>
-                                    <div className="text-xs mt-0.5" style={{ color: 'var(--background-text, #002BB2)', opacity: 0.6 }}>
-                                        {metric.description}
-                                    </div>
+                                <div
+                                    className="font-semibold mb-1"
+                                    style={{ fontSize: '15px', color: 'var(--background-text, #002BB2)' }}
+                                >
+                                    {metric.label}
+                                </div>
+                                <div
+                                    style={{ fontSize: '13px', lineHeight: '1.5', color: 'var(--background-text, #002BB2)', opacity: 0.6 }}
+                                >
+                                    {metric.description}
                                 </div>
                             </div>
                         ))}
                     </div>
-                </div>
-
-                {/* Right: Infographic from YandexART */}
-                <div className="w-[50%] p-[20px] flex items-center justify-center">
-                    {slideData?.image?.__image_url__ ? (
-                        <img
-                            src={slideData.image.__image_url__}
-                            alt={slideData.image.__image_prompt__ || slideData?.title || ''}
-                            className="max-w-full max-h-full rounded-lg object-contain"
-                        />
-                    ) : (
-                        <div className="w-full aspect-video rounded-lg flex items-center justify-center" style={{ background: 'var(--card-color, #F7F8FF)' }}>
-                            <span style={{ fontSize: '14px', color: 'var(--background-text, #002BB2)', opacity: 0.3 }}>Infographic</span>
-                        </div>
-                    )}
                 </div>
             </div>
         </>
