@@ -237,7 +237,7 @@ async def _generate_from_document_task(
         include_toc = metadata.get("include_toc_slide", False)
         tone = metadata.get("tone", "educational")
         template = "zachet"
-        is_project = work_type.lower() in ("проект", "project", "исследование")
+        is_project = work_type.lower() == "project"
 
         # For project work type, add 4 structural slides
         if is_project:
