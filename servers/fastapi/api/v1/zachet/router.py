@@ -194,7 +194,7 @@ def _override_title_image_prompt(slides: List[SlideModel]):
             f"обложка презентации: {title}. {subtitle}. "
             f"Изображение должно быть релевантным теме и подходить как титульное"
         )
-        img["__image_type__"] = "illustration"
+        img["__image_type__"] = "photo"
 
 
 def _override_metrics_image_prompts(slides: List[SlideModel]):
