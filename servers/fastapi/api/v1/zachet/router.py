@@ -102,7 +102,13 @@ async def _refine_image_prompts(
     tasks = []
     task_targets = []  # (slide_index, image_dict) for each task
 
+    METRICS_LAYOUT = "zachet:zachet-metrics-slide"
+
     for i, slide in enumerate(slides):
+        # Skip metrics slides — their prompts are crafted from actual data
+        if slide.layout == METRICS_LAYOUT:
+            continue
+
         image_paths = get_dict_paths_with_key(slide.content, "__image_prompt__")
         if not image_paths:
             continue
