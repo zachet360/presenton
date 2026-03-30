@@ -286,7 +286,7 @@ async def _generate_from_document_task(
             raise Exception("Failed to parse presentation outlines from LLM")
 
         presentation_outlines = ZachetPresentationOutlineModel(**presentation_outlines_json)
-        total_outlines = n_slides_to_generate
+        total_outlines = len(presentation_outlines.slides)
         log.end(
             outlines_count=len(presentation_outlines.slides),
             summary=getattr(presentation_outlines, "summary", ""),
