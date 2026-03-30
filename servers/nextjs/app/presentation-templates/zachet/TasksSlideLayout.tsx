@@ -58,7 +58,7 @@ const TasksSlideLayout: React.FC<TasksSlideLayoutProps> = ({ data: slideData }) 
                         >
                             {slideData?.title || 'Задачи'}
                         </h1>
-                        <div className="w-[60px] h-[4px] rounded-full mt-4" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
+                        <div className="w-[60px] h-[4px] rounded-[4px] mt-4" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
                     </div>
 
                     {/* Right: Numbered tasks */}
@@ -70,7 +70,7 @@ const TasksSlideLayout: React.FC<TasksSlideLayoutProps> = ({ data: slideData }) 
                                 style={{ background: 'var(--card-color, #F7F8FF)', borderLeft: '4px solid var(--stroke, #4C68DF)' }}
                             >
                                 <div
-                                    className="w-[36px] h-[36px] rounded-full flex items-center justify-center flex-shrink-0"
+                                    className="w-[36px] h-[36px] rounded-[4px] flex items-center justify-center flex-shrink-0"
                                     style={{ background: 'var(--primary-color, #1F4CD9)' }}
                                 >
                                     <span className="text-sm font-bold" style={{ color: 'var(--primary-text, #FFFFFF)' }}>{i + 1}</span>

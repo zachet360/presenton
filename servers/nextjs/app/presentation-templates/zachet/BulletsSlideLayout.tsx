@@ -75,7 +75,7 @@ const BulletsSlideLayout: React.FC<BulletsSlideLayoutProps> = ({ data: slideData
                                 style={{ background: 'var(--card-color, #F7F8FF)', borderLeft: '4px solid var(--stroke, #4C68DF)' }}
                             >
                                 <div
-                                    className="w-[40px] h-[40px] rounded-full flex items-center justify-center flex-shrink-0"
+                                    className="w-[40px] h-[40px] rounded-[4px] flex items-center justify-center flex-shrink-0"
                                     style={{ border: '1.3px solid var(--stroke, #4C68DF)', background: 'var(--primary-color, #F7F8FF)' }}
                                 >
                                     {bullet.icon?.__icon_url__ ? (

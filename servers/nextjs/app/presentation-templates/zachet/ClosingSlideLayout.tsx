@@ -41,7 +41,7 @@ const ClosingSlideLayout: React.FC<ClosingSlideLayoutProps> = ({ data: slideData
 
                 <div className="text-center px-[100px] max-w-3xl">
                     <div
-                        className="w-[56px] h-[56px] rounded-full flex items-center justify-center mx-auto mb-6"
+                        className="w-[56px] h-[56px] rounded-[4px] flex items-center justify-center mx-auto mb-6"
                         style={{ background: 'var(--primary-color, #1F4CD9)' }}
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary-text, #FFFFFF)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -54,7 +54,7 @@ const ClosingSlideLayout: React.FC<ClosingSlideLayoutProps> = ({ data: slideData
                     >
                         {slideData?.title || 'Thank You'}
                     </h1>
-                    <div className="w-[60px] h-[4px] rounded-full mx-auto mb-6" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
+                    <div className="w-[60px] h-[4px] rounded-[4px] mx-auto mb-6" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
                     <p style={{ fontSize: '16px', lineHeight: '1.7', color: 'var(--background-text, #002BB2)', opacity: 0.7 }}>
                         {slideData?.summary || ''}
                     </p>

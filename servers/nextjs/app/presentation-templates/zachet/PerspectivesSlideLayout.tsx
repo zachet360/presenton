@@ -71,7 +71,7 @@ const PerspectivesSlideLayout: React.FC<PerspectivesSlideLayoutProps> = ({ data:
                                 style={{ background: i === 0 ? 'var(--primary-color, #6B89E6)' : 'var(--card-color, #F7F8FF)', border: i === 0 ? 'none' : '1px solid var(--stroke, #F0F0F2)' }}
                             >
                                 <div
-                                    className="w-[32px] h-[32px] rounded-full flex items-center justify-center flex-shrink-0"
+                                    className="w-[32px] h-[32px] rounded-[4px] flex items-center justify-center flex-shrink-0"
                                     style={{ background: i === 0 ? 'rgba(255,255,255,0.2)' : 'var(--primary-color, #1F4CD9)' }}
                                 >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={i === 0 ? '#FFFFFF' : 'var(--primary-text, #FFFFFF)'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

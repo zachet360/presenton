@@ -41,7 +41,7 @@ const ProblemSlideLayout: React.FC<ProblemSlideLayoutProps> = ({ data: slideData
 
                 <div className="text-center px-[100px] max-w-4xl">
                     <div
-                        className="w-[56px] h-[56px] rounded-full flex items-center justify-center mx-auto mb-6"
+                        className="w-[56px] h-[56px] rounded-[4px] flex items-center justify-center mx-auto mb-6"
                         style={{ background: '#E8453C' }}
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -56,7 +56,7 @@ const ProblemSlideLayout: React.FC<ProblemSlideLayoutProps> = ({ data: slideData
                     >
                         {slideData?.title || 'Проблема'}
                     </h1>
-                    <div className="w-[60px] h-[4px] rounded-full mx-auto mb-6" style={{ background: '#E8453C' }} />
+                    <div className="w-[60px] h-[4px] rounded-[4px] mx-auto mb-6" style={{ background: '#E8453C' }} />
                     <p style={{ fontSize: '18px', lineHeight: '1.7', color: 'var(--background-text, #002BB2)', opacity: 0.8 }}>
                         {slideData?.problem || ''}
                     </p>

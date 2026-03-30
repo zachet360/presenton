@@ -76,7 +76,7 @@ const MetricsSlideLayout: React.FC<MetricsSlideLayoutProps> = ({ data: slideData
                         >
                             {slideData?.title || 'Key Metrics'}
                         </h1>
-                        <div className="w-[60px] h-[4px] rounded-full mb-5" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
+                        <div className="w-[60px] h-[4px] rounded-[4px] mb-5" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
                         <p style={{ fontSize: '16px', lineHeight: '1.7', color: 'var(--background-text, #002BB2)', opacity: 0.7 }}>
                             {slideData?.description || ''}
                         </p>
@@ -108,9 +108,9 @@ const MetricsSlideLayout: React.FC<MetricsSlideLayoutProps> = ({ data: slideData
                                             {metric.value}
                                         </span>
                                     </div>
-                                    <div className="w-full h-[8px] rounded-full overflow-hidden" style={{ background: 'var(--stroke, #F0F0F2)' }}>
+                                    <div className="w-full h-[8px] rounded-[4px] overflow-hidden" style={{ background: 'var(--stroke, #F0F0F2)' }}>
                                         <div
-                                            className="h-full rounded-full transition-all"
+                                            className="h-full rounded-[4px] transition-all"
                                             style={{ width: `${barWidth}%`, background: color }}
                                         />
                                     </div>
