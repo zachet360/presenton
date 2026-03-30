@@ -68,7 +68,7 @@ const TitleSlideLayout: React.FC<TitleSlideLayoutProps> = ({ data: slideData }) 
                 <div className="h-[45%] flex flex-col items-center justify-center px-[72px]">
                     <h1
                         className="font-bold text-center leading-tight mb-2"
-                        style={{ fontSize: '42.7px', letterSpacing: '-1.6px', color: 'var(--background-text, #002BB2)' }}
+                        style={{ fontSize: '43px', letterSpacing: '-2px', color: 'var(--background-text, #002BB2)' }}
                     >
                         {slideData?.title || 'Presentation Title'}
                     </h1>

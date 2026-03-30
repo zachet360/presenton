@@ -48,7 +48,7 @@ const ImageSlideLayout: React.FC<ImageSlideLayoutProps> = ({ data: slideData }) 
                 <div className="w-[50%] flex flex-col justify-center px-[52px] pt-[60px] pb-[40px]">
                     <h1
                         className="font-bold mb-4"
-                        style={{ fontSize: '42.7px', letterSpacing: '-1.6px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
+                        style={{ fontSize: '43px', letterSpacing: '-2px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
                     >
                         {slideData?.title || 'Visual Overview'}
                     </h1>

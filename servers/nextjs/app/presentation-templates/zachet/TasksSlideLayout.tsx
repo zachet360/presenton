@@ -54,7 +54,7 @@ const TasksSlideLayout: React.FC<TasksSlideLayoutProps> = ({ data: slideData }) 
                     <div className="w-[35%] flex flex-col justify-center">
                         <h1
                             className="font-bold"
-                            style={{ fontSize: '42.7px', letterSpacing: '-1.6px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
+                            style={{ fontSize: '43px', letterSpacing: '-2px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
                         >
                             {slideData?.title || 'Задачи'}
                         </h1>
@@ -74,7 +74,7 @@ const TasksSlideLayout: React.FC<TasksSlideLayoutProps> = ({ data: slideData }) 
                                 >
                                     <span className="text-sm font-bold" style={{ color: 'var(--primary-text, #FFFFFF)' }}>{i + 1}</span>
                                 </div>
-                                <p className="pt-1.5" style={{ fontSize: '15.3px', lineHeight: '1.5', color: 'var(--background-text, #002BB2)', opacity: 0.8 }}>
+                                <p className="pt-2" style={{ fontSize: '15px', lineHeight: '1.5', color: 'var(--background-text, #002BB2)', opacity: 0.8 }}>
                                     {task}
                                 </p>
                             </div>

@@ -55,7 +55,7 @@ const PerspectivesSlideLayout: React.FC<PerspectivesSlideLayoutProps> = ({ data:
                 <div className="flex-1 flex flex-col justify-center px-[72px] pt-[60px] pb-[40px]">
                     <h1
                         className="font-bold mb-2"
-                        style={{ fontSize: '42.7px', letterSpacing: '-1.6px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
+                        style={{ fontSize: '43px', letterSpacing: '-2px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
                     >
                         {slideData?.title || 'Перспективы исследований'}
                     </h1>
@@ -79,7 +79,7 @@ const PerspectivesSlideLayout: React.FC<PerspectivesSlideLayoutProps> = ({ data:
                                         <polyline points="6 17 11 12 6 7" />
                                     </svg>
                                 </div>
-                                <p className="pt-1" style={{ fontSize: '15.3px', lineHeight: '1.5', color: i === 0 ? '#FFFFFF' : 'var(--background-text, #002BB2)', opacity: i === 0 ? 1 : 0.8 }}>
+                                <p className="pt-1" style={{ fontSize: '15px', lineHeight: '1.5', color: i === 0 ? '#FFFFFF' : 'var(--background-text, #002BB2)', opacity: i === 0 ? 1 : 0.8 }}>
                                     {point}
                                 </p>
                             </div>

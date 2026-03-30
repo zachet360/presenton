@@ -52,7 +52,7 @@ const GoalSlideLayout: React.FC<GoalSlideLayoutProps> = ({ data: slideData }) =>
                     </div>
                     <h1
                         className="font-bold mb-4"
-                        style={{ fontSize: '42.7px', letterSpacing: '-1.6px', color: 'var(--background-text, #002BB2)' }}
+                        style={{ fontSize: '43px', letterSpacing: '-2px', color: 'var(--background-text, #002BB2)' }}
                     >
                         {slideData?.title || 'Цель'}
                     </h1>

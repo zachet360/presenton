@@ -63,7 +63,7 @@ const BulletsSlideLayout: React.FC<BulletsSlideLayoutProps> = ({ data: slideData
                 <div className="w-[55%] flex flex-col justify-center px-[52px] pt-[60px] pb-[40px]">
                     <h1
                         className="font-bold mb-6"
-                        style={{ fontSize: '42.7px', letterSpacing: '-1.6px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
+                        style={{ fontSize: '43px', letterSpacing: '-2px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
                     >
                         {slideData?.title || 'Key Points'}
                     </h1>
@@ -76,7 +76,7 @@ const BulletsSlideLayout: React.FC<BulletsSlideLayoutProps> = ({ data: slideData
                             >
                                 <div
                                     className="w-[40px] h-[40px] rounded-[4px] flex items-center justify-center flex-shrink-0"
-                                    style={{ border: '1.3px solid var(--stroke, #4C68DF)', background: 'var(--primary-color, #F7F8FF)' }}
+                                    style={{ border: '1px solid var(--stroke, #4C68DF)', background: 'var(--primary-color, #F7F8FF)' }}
                                 >
                                     {bullet.icon?.__icon_url__ ? (
                                         <img src={bullet.icon.__icon_url__} alt="" className="w-5 h-5" />
@@ -85,10 +85,10 @@ const BulletsSlideLayout: React.FC<BulletsSlideLayoutProps> = ({ data: slideData
                                     )}
                                 </div>
                                 <div>
-                                    <div className="font-bold" style={{ fontSize: '17.5px', color: 'var(--background-text, #002BB2)' }}>
+                                    <div className="font-bold" style={{ fontSize: '18px', color: 'var(--background-text, #002BB2)' }}>
                                         {bullet.heading}
                                     </div>
-                                    <div style={{ fontSize: '15.3px', lineHeight: '1.5', color: 'var(--background-text, #002BB2)', opacity: 0.7, marginTop: '2px' }}>
+                                    <div style={{ fontSize: '15px', lineHeight: '1.5', color: 'var(--background-text, #002BB2)', opacity: 0.7, marginTop: '2px' }}>
                                         {bullet.text}
                                     </div>
                                 </div>
