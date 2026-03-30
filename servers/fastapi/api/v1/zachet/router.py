@@ -307,55 +307,39 @@ async def _generate_from_document_task(
         layout_model = await get_layout_by_name(template)
         total_slide_layouts = len(layout_model.slides)
 
-        if layout_model.ordered:
-            # Zachet template indices:
-            # 0=Title, 1=Goal, 2=Tasks, 3=Problem, 4=Bullets, 5=Image,
-            # 6=Comparison, 7=Metrics, 8=Perspectives, 9=Closing
-            TITLE_IDX = 0
-            GOAL_IDX = 1
-            TASKS_IDX = 2
-            PROBLEM_IDX = 3
-            CONTENT_INDICES = [4, 5, 6, 7]  # Bullets, Image, Comparison, Metrics
-            PERSPECTIVES_IDX = 8
-            CLOSING_IDX = 9
+        # Zachet always uses our own cycling logic (ignore layout_model.ordered)
+        # Template indices:
+        # 0=Title, 1=Goal, 2=Tasks, 3=Problem, 4=Bullets, 5=Image,
+        # 6=Comparison, 7=Metrics, 8=Perspectives, 9=Closing
+        TITLE_IDX = 0
+        GOAL_IDX = 1
+        TASKS_IDX = 2
+        PROBLEM_IDX = 3
+        CONTENT_INDICES = [4, 5, 6, 7]  # Bullets, Image, Comparison, Metrics
+        PERSPECTIVES_IDX = 8
+        CLOSING_IDX = 9
 
-            slides: List[int] = []
-            if is_project:
-                # Project: Title → Goal → Tasks → Problem → [content...] → Perspectives → Closing
-                slides.append(TITLE_IDX)
-                slides.append(GOAL_IDX)
-                slides.append(TASKS_IDX)
-                slides.append(PROBLEM_IDX)
-                content_count = total_outlines - 6  # minus title, goal, tasks, problem, perspectives, closing
-                for c in range(max(content_count, 0)):
-                    slides.append(CONTENT_INDICES[c % len(CONTENT_INDICES)])
-                slides.append(PERSPECTIVES_IDX)
-                slides.append(CLOSING_IDX)
-            else:
-                # Default: Title → [content...] → Closing
-                slides.append(TITLE_IDX)
-                content_count = total_outlines - 2  # minus title, closing
-                for c in range(max(content_count, 0)):
-                    slides.append(CONTENT_INDICES[c % len(CONTENT_INDICES)])
-                slides.append(CLOSING_IDX)
-
-            presentation_structure = PresentationStructureModel(slides=slides)
+        slides: List[int] = []
+        if is_project:
+            # Project: Title → Goal → Tasks → Problem → [content...] → Perspectives → Closing
+            slides.append(TITLE_IDX)
+            slides.append(GOAL_IDX)
+            slides.append(TASKS_IDX)
+            slides.append(PROBLEM_IDX)
+            content_count = total_outlines - 6  # minus title, goal, tasks, problem, perspectives, closing
+            for c in range(max(content_count, 0)):
+                slides.append(CONTENT_INDICES[c % len(CONTENT_INDICES)])
+            slides.append(PERSPECTIVES_IDX)
+            slides.append(CLOSING_IDX)
         else:
-            presentation_structure = await generate_presentation_structure(
-                presentation_outlines,
-                layout_model,
-                None,
-                False,
-            )
+            # Default: Title → [content...] → Closing
+            slides.append(TITLE_IDX)
+            content_count = total_outlines - 2  # minus title, closing
+            for c in range(max(content_count, 0)):
+                slides.append(CONTENT_INDICES[c % len(CONTENT_INDICES)])
+            slides.append(CLOSING_IDX)
 
-            presentation_structure.slides = presentation_structure.slides[:total_outlines]
-            for index in range(total_outlines):
-                random_slide_index = random.randint(0, total_slide_layouts - 1)
-                if index >= total_outlines:
-                    presentation_structure.slides.append(random_slide_index)
-                    continue
-                if presentation_structure.slides[index] >= total_slide_layouts:
-                    presentation_structure.slides[index] = random_slide_index
+        presentation_structure = PresentationStructureModel(slides=slides)
 
         log.end(
             ordered=layout_model.ordered,
