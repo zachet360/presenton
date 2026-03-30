@@ -13,123 +13,98 @@ const comparisonSlideSchema = z.object({
         description: "Brief description of what is being compared",
     }),
     left: z.object({
-        heading: z.string().min(2).max(40).meta({
-            description: "Heading for the left column",
-        }),
-        points: z.array(
-            z.string().min(5).max(100).meta({
-                description: "A comparison point",
-            })
-        ).min(2).max(4).meta({
-            description: "List of points for the left column",
-        }),
+        heading: z.string().min(2).max(40).meta({ description: "Heading for the left column" }),
+        points: z.array(z.string().min(5).max(100).meta({ description: "A comparison point" })).min(2).max(4).meta({ description: "List of points for the left column" }),
     }).default({
         heading: 'Option A',
         points: ['First advantage of this approach', 'Second advantage of this approach', 'Third advantage of this approach'],
-    }).meta({
-        description: "Left column content",
-    }),
+    }).meta({ description: "Left column content" }),
     right: z.object({
-        heading: z.string().min(2).max(40).meta({
-            description: "Heading for the right column",
-        }),
-        points: z.array(
-            z.string().min(5).max(100).meta({
-                description: "A comparison point",
-            })
-        ).min(2).max(4).meta({
-            description: "List of points for the right column",
-        }),
+        heading: z.string().min(2).max(40).meta({ description: "Heading for the right column" }),
+        points: z.array(z.string().min(5).max(100).meta({ description: "A comparison point" })).min(2).max(4).meta({ description: "List of points for the right column" }),
     }).default({
         heading: 'Option B',
         points: ['First advantage of this approach', 'Second advantage of this approach', 'Third advantage of this approach'],
-    }).meta({
-        description: "Right column content",
-    }),
+    }).meta({ description: "Right column content" }),
 })
 
 export const Schema = comparisonSlideSchema
-
 export type ComparisonSlideData = z.infer<typeof comparisonSlideSchema>
 
-interface ComparisonSlideLayoutProps {
-    data?: Partial<ComparisonSlideData>
-}
+interface ComparisonSlideLayoutProps { data?: Partial<ComparisonSlideData> }
 
 const ComparisonSlideLayout: React.FC<ComparisonSlideLayoutProps> = ({ data: slideData }) => {
     const left = slideData?.left || { heading: 'Option A', points: [] }
     const right = slideData?.right || { heading: 'Option B', points: [] }
 
     return (
-        <div
-            className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video relative z-20 mx-auto overflow-hidden flex flex-col"
-            style={{
-                fontFamily: 'var(--heading-font-family, Poppins)',
-                background: 'var(--background-color, #ffffff)',
-            }}
-        >
-            {((slideData as any)?.__companyName__ || (slideData as any)?._logo_url__) && (
-                <div className="absolute top-0 left-0 right-0 px-12 pt-4">
-                    <div className="flex items-center gap-1">
-                        {(slideData as any)?._logo_url__ && <img src={(slideData as any)?._logo_url__} alt="logo" className="w-6 h-6" />}
-                        {(slideData as any)?.__companyName__ && <span className="text-sm font-semibold" style={{ color: 'var(--background-text, #111827)' }}>{(slideData as any)?.__companyName__}</span>}
+        <>
+            <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
+            <div
+                className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video relative z-20 mx-auto overflow-hidden flex flex-col"
+                style={{ fontFamily: 'var(--body-font-family, Montserrat)', background: 'var(--background-color, #FFFFFF)' }}
+            >
+                {((slideData as any)?.__companyName__ || (slideData as any)?._logo_url__) && (
+                    <div className="absolute top-5 left-5 flex items-center gap-2 z-10">
+                        {(slideData as any)?._logo_url__ && <img src={(slideData as any)?._logo_url__} alt="logo" className="w-[60px] object-contain" />}
+                        {(slideData as any)?.__companyName__ && (
+                            <>
+                                <div className="w-[2px] h-5" style={{ background: 'var(--stroke, #4C68DF)' }} />
+                                <span className="text-sm font-semibold" style={{ color: 'var(--background-text, #002BB2)' }}>{(slideData as any)?.__companyName__}</span>
+                            </>
+                        )}
                     </div>
-                </div>
-            )}
+                )}
 
-            <div className="flex-1 flex flex-col justify-center px-12 pt-10 pb-10">
-                <h2
-                    className="text-4xl font-bold mb-2 text-center"
-                    style={{ color: 'var(--background-text, #111827)' }}
-                >
-                    {slideData?.title || 'Comparison'}
-                </h2>
-                <p
-                    className="text-base mb-6 text-center max-w-2xl mx-auto"
-                    style={{ color: 'var(--background-text, #6b7280)' }}
-                >
-                    {slideData?.description || ''}
-                </p>
-
-                <div className="grid grid-cols-2 gap-6 flex-1">
-                    {/* Left column */}
-                    <div className="rounded-xl p-6" style={{ background: 'var(--card-color, #f9fafb)', border: '1px solid var(--stroke, #e5e7eb)' }}>
-                        <h3
-                            className="text-xl font-bold mb-4 pb-3"
-                            style={{ color: 'var(--primary-color, #9333ea)', borderBottom: '2px solid var(--primary-color, #9333ea)' }}
+                <div className="flex-1 flex flex-col justify-center px-[72px] pt-[60px] pb-[40px]">
+                    <div className="text-center mb-6">
+                        <h1
+                            className="font-bold mb-2"
+                            style={{ fontSize: '42.7px', letterSpacing: '-1.6px', color: 'var(--background-text, #002BB2)' }}
                         >
-                            {left.heading}
-                        </h3>
-                        <ul className="space-y-3">
-                            {left.points?.map((point, i) => (
-                                <li key={i} className="flex items-start gap-2">
-                                    <span className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--primary-color, #9333ea)' }} />
-                                    <span className="text-sm leading-relaxed" style={{ color: 'var(--background-text, #374151)' }}>{point}</span>
-                                </li>
-                            ))}
-                        </ul>
+                            {slideData?.title || 'Comparison'}
+                        </h1>
+                        <p style={{ fontSize: '16px', color: 'var(--background-text, #002BB2)', opacity: 0.7 }}>
+                            {slideData?.description || ''}
+                        </p>
                     </div>
 
-                    {/* Right column */}
-                    <div className="rounded-xl p-6" style={{ background: 'var(--card-color, #f9fafb)', border: '1px solid var(--stroke, #e5e7eb)' }}>
-                        <h3
-                            className="text-xl font-bold mb-4 pb-3"
-                            style={{ color: 'var(--background-text, #374151)', borderBottom: '2px solid var(--stroke, #d1d5db)' }}
-                        >
-                            {right.heading}
-                        </h3>
-                        <ul className="space-y-3">
-                            {right.points?.map((point, i) => (
-                                <li key={i} className="flex items-start gap-2">
-                                    <span className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--background-text, #9ca3af)' }} />
-                                    <span className="text-sm leading-relaxed" style={{ color: 'var(--background-text, #374151)' }}>{point}</span>
-                                </li>
-                            ))}
-                        </ul>
+                    <div className="flex gap-[36px] flex-1">
+                        {/* Left card */}
+                        <div className="flex-1 rounded-[3.4px] p-[41px] flex flex-col" style={{ background: 'var(--card-color, #F7F8FF)', border: '1px solid var(--stroke, #F0F0F2)' }}>
+                            <div className="h-[4px] w-[60px] rounded-full mb-5" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
+                            <h2 className="font-bold mb-4" style={{ fontSize: '28.4px', color: 'var(--background-text, #002BB2)' }}>
+                                {left.heading}
+                            </h2>
+                            <div className="flex flex-col gap-3">
+                                {left.points?.map((point, i) => (
+                                    <div key={i} className="flex items-start gap-3">
+                                        <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
+                                        <span style={{ fontSize: '15.3px', lineHeight: '1.5', color: 'var(--background-text, #002BB2)', opacity: 0.8 }}>{point}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Right card */}
+                        <div className="flex-1 rounded-[3.4px] p-[41px] flex flex-col" style={{ background: 'var(--card-color, #F7F8FF)', border: '1px solid var(--stroke, #F0F0F2)' }}>
+                            <div className="h-[4px] w-[60px] rounded-full mb-5" style={{ background: 'var(--stroke, #4C68DF)', opacity: 0.5 }} />
+                            <h2 className="font-bold mb-4" style={{ fontSize: '28.4px', color: 'var(--background-text, #002BB2)' }}>
+                                {right.heading}
+                            </h2>
+                            <div className="flex flex-col gap-3">
+                                {right.points?.map((point, i) => (
+                                    <div key={i} className="flex items-start gap-3">
+                                        <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ background: 'var(--stroke, #4C68DF)', opacity: 0.5 }} />
+                                        <span style={{ fontSize: '15.3px', lineHeight: '1.5', color: 'var(--background-text, #002BB2)', opacity: 0.8 }}>{point}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </>
     )
 }
 

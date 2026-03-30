@@ -16,69 +16,64 @@ const imageSlideSchema = z.object({
     image: ImageSchema.default({
         __image_url__: '',
         __image_prompt__: 'professional presentation illustration',
-    }).meta({
-        description: "Supporting image for the slide",
-    }),
+    }).meta({ description: "Supporting image for the slide" }),
 })
 
 export const Schema = imageSlideSchema
-
 export type ImageSlideData = z.infer<typeof imageSlideSchema>
 
-interface ImageSlideLayoutProps {
-    data?: Partial<ImageSlideData>
-}
+interface ImageSlideLayoutProps { data?: Partial<ImageSlideData> }
 
 const ImageSlideLayout: React.FC<ImageSlideLayoutProps> = ({ data: slideData }) => {
     return (
-        <div
-            className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video relative z-20 mx-auto overflow-hidden flex"
-            style={{
-                fontFamily: 'var(--heading-font-family, Poppins)',
-                background: 'var(--background-color, #ffffff)',
-            }}
-        >
-            {((slideData as any)?.__companyName__ || (slideData as any)?._logo_url__) && (
-                <div className="absolute top-0 left-0 right-0 px-12 pt-4 z-10">
-                    <div className="flex items-center gap-1">
-                        {(slideData as any)?._logo_url__ && <img src={(slideData as any)?._logo_url__} alt="logo" className="w-6 h-6" />}
-                        {(slideData as any)?.__companyName__ && <span className="text-sm font-semibold" style={{ color: 'var(--background-text, #111827)' }}>{(slideData as any)?.__companyName__}</span>}
-                    </div>
-                </div>
-            )}
-
-            {/* Left: Text */}
-            <div className="w-1/2 flex flex-col justify-center px-12 pt-10 pb-10">
-                <h2
-                    className="text-4xl font-bold mb-4"
-                    style={{ color: 'var(--background-text, #111827)' }}
-                >
-                    {slideData?.title || 'Visual Overview'}
-                </h2>
-                <div className="w-16 h-1 mb-4" style={{ background: 'var(--primary-color, #9333ea)' }} />
-                <p
-                    className="text-base leading-relaxed"
-                    style={{ color: 'var(--background-text, #4b5563)' }}
-                >
-                    {slideData?.description || ''}
-                </p>
-            </div>
-
-            {/* Right: Image */}
-            <div className="w-1/2 p-6 flex items-center justify-center">
-                {slideData?.image?.__image_url__ ? (
-                    <img
-                        src={slideData.image.__image_url__}
-                        alt={slideData.image.__image_prompt__ || slideData?.title || ''}
-                        className="max-w-full max-h-full rounded-xl object-contain"
-                    />
-                ) : (
-                    <div className="w-full aspect-video rounded-xl flex items-center justify-center" style={{ background: 'var(--card-color, #f3f4f6)' }}>
-                        <span className="text-sm" style={{ color: 'var(--background-text, #9ca3af)' }}>Image</span>
+        <>
+            <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
+            <div
+                className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video relative z-20 mx-auto overflow-hidden flex"
+                style={{ fontFamily: 'var(--body-font-family, Montserrat)', background: 'var(--background-color, #FFFFFF)' }}
+            >
+                {((slideData as any)?.__companyName__ || (slideData as any)?._logo_url__) && (
+                    <div className="absolute top-5 left-5 flex items-center gap-2 z-10">
+                        {(slideData as any)?._logo_url__ && <img src={(slideData as any)?._logo_url__} alt="logo" className="w-[60px] object-contain" />}
+                        {(slideData as any)?.__companyName__ && (
+                            <>
+                                <div className="w-[2px] h-5" style={{ background: 'var(--stroke, #4C68DF)' }} />
+                                <span className="text-sm font-semibold" style={{ color: 'var(--background-text, #002BB2)' }}>{(slideData as any)?.__companyName__}</span>
+                            </>
+                        )}
                     </div>
                 )}
+
+                {/* Left: Text */}
+                <div className="w-[50%] flex flex-col justify-center px-[52px] pt-[60px] pb-[40px]">
+                    <h1
+                        className="font-bold mb-4"
+                        style={{ fontSize: '42.7px', letterSpacing: '-1.6px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
+                    >
+                        {slideData?.title || 'Visual Overview'}
+                    </h1>
+                    <div className="w-[60px] h-[4px] rounded-full mb-5" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
+                    <p style={{ fontSize: '16px', lineHeight: '1.7', color: 'var(--background-text, #002BB2)', opacity: 0.7 }}>
+                        {slideData?.description || ''}
+                    </p>
+                </div>
+
+                {/* Right: Image */}
+                <div className="w-[50%] p-[20px] flex items-center justify-center">
+                    {slideData?.image?.__image_url__ ? (
+                        <img
+                            src={slideData.image.__image_url__}
+                            alt={slideData.image.__image_prompt__ || slideData?.title || ''}
+                            className="max-w-full max-h-full rounded-lg object-contain"
+                        />
+                    ) : (
+                        <div className="w-full aspect-video rounded-lg flex items-center justify-center" style={{ background: 'var(--card-color, #F7F8FF)' }}>
+                            <span style={{ fontSize: '14px', color: 'var(--background-text, #002BB2)', opacity: 0.3 }}>Image</span>
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+        </>
     )
 }
 
