@@ -65,7 +65,7 @@ class ImageGenerationService:
     def is_stock_provider_selected(self):
         return is_pixels_selected() or is_pixabay_selected()
 
-    async def generate_image(self, prompt: ImagePrompt, image_type: str = None) -> str | ImageAsset:
+    async def generate_image(self, prompt: ImagePrompt, image_type: str = None, image_orientation: str = None) -> str | ImageAsset:
         """
         Generates an image based on the provided prompt.
         - If no image generation function is available, returns a placeholder image.
@@ -84,7 +84,7 @@ class ImageGenerationService:
 
         # Yandex provider: search + YandexART
         if is_yandex_selected():
-            return await self.fetch_image_yandex(prompt, image_type or "photo")
+            return await self.fetch_image_yandex(prompt, image_type or "photo", image_orientation)
 
         if not self.image_gen_func:
             print("No image generation function found. Using placeholder image.")
@@ -179,16 +179,17 @@ class ImageGenerationService:
 
         return "/static/images/placeholder.jpg"
 
-    async def fetch_image_yandex(self, prompt: ImagePrompt, image_type: str) -> str | ImageAsset:
+    async def fetch_image_yandex(self, prompt: ImagePrompt, image_type: str, image_orientation: str = None) -> str | ImageAsset:
         """Yandex provider: illustration → YandexART, others → Yandex Image Search."""
         from services.yandex_image_service import YandexImageService
 
         image_prompt = prompt.get_image_prompt(with_theme=image_type == "illustration")
-        print(f"Yandex image fetch: type={image_type} prompt={image_prompt}")
+        orientation = image_orientation or "IMAGE_ORIENTATION_HORIZONTAL"
+        print(f"Yandex image fetch: type={image_type} orientation={orientation} prompt={image_prompt}")
 
         yandex = YandexImageService()
         try:
-            result = await yandex.get_image(image_prompt, self.output_directory, image_type)
+            result = await yandex.get_image(image_prompt, self.output_directory, image_type, orientation)
             if result:
                 if result.startswith("http"):
                     return result

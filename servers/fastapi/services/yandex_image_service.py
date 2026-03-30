@@ -55,9 +55,11 @@ class YandexImageService:
             print(f"[Yandex Search] Download error for {url[:80]}: {type(e).__name__}: {e}")
             return None
 
-    async def search_image(self, query: str, output_directory: str) -> str | None:
+    async def search_image(
+        self, query: str, output_directory: str, orientation: str = "IMAGE_ORIENTATION_HORIZONTAL",
+    ) -> str | None:
         """Search Yandex Images. Downloads first result locally. Returns file path or None."""
-        print(f"[Yandex Search] Starting search for: '{query}'")
+        print(f"[Yandex Search] Starting search for: '{query}' (orientation={orientation})")
         headers = self._get_headers()
         folder_id = self._get_folder_id()
         words = query.split()
@@ -79,7 +81,7 @@ class YandexImageService:
                 "imageSpec": {
                     "format": "IMAGE_FORMAT_JPEG",
                     "size": "IMAGE_SIZE_LARGE",
-                    "orientation": "IMAGE_ORIENTATION_HORIZONTAL",
+                    "orientation": orientation,
                 },
                 "docsOnPage": "5",
                 "folderId": folder_id,
@@ -239,10 +241,11 @@ class YandexImageService:
             return None
 
     async def get_image(
-        self, prompt: str, output_directory: str, image_type: str = "photo"
+        self, prompt: str, output_directory: str, image_type: str = "photo",
+        orientation: str = "IMAGE_ORIENTATION_HORIZONTAL",
     ) -> str | None:
         """Route by image_type: illustration → YandexART, others → search with fallback."""
-        print(f"[Yandex] get_image: type={image_type}, prompt='{prompt[:60]}'")
+        print(f"[Yandex] get_image: type={image_type}, orientation={orientation}, prompt='{prompt[:60]}'")
 
         if image_type == "illustration":
             print(f"[Yandex] Routing to YandexART (illustration)")
@@ -250,10 +253,10 @@ class YandexImageService:
             if result:
                 return result
             print(f"[Yandex] YandexART failed, falling back to search")
-            return await self.search_image(prompt, output_directory)
+            return await self.search_image(prompt, output_directory, orientation)
 
         print(f"[Yandex] Routing to Yandex Image Search ({image_type})")
-        result = await self.search_image(prompt, output_directory)
+        result = await self.search_image(prompt, output_directory, orientation)
         if result:
             return result
 

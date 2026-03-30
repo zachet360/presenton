@@ -167,6 +167,21 @@ def _clamp_illustration_count(slides: List[SlideModel], target: int = 1):
         illustration_dicts.append(promoted)
 
 
+def _set_image_orientation(
+    slides: List[SlideModel],
+    orientation: str = "IMAGE_ORIENTATION_SQUARE",
+):
+    """Inject __image_orientation__ into every image dict so Yandex Search
+    requests images matching the zachet template container shape."""
+    from utils.dict_utils import get_dict_paths_with_key, get_dict_at_path
+
+    for slide in slides:
+        image_paths = get_dict_paths_with_key(slide.content, "__image_prompt__")
+        for path in image_paths:
+            image_dict = get_dict_at_path(slide.content, path)
+            image_dict["__image_orientation__"] = orientation
+
+
 # ──────────────────────────────────────────────────────────────
 # Background task
 # ──────────────────────────────────────────────────────────────
@@ -406,6 +421,9 @@ async def _generate_from_document_task(
 
         # 5.2. Clamp to exactly 1 illustration (YandexART infographic)
         _clamp_illustration_count(slides)
+
+        # 5.3. Set image orientation to match zachet template containers (~square)
+        _set_image_orientation(slides)
 
         if async_status:
             async_status.message = "Fetching assets for slides"
