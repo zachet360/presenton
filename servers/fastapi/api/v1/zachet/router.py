@@ -102,7 +102,7 @@ async def _refine_image_prompts(
     tasks = []
     task_targets = []  # (slide_index, image_dict) for each task
 
-    SKIP_LAYOUTS = {"zachet:zachet-title-slide"}
+    SKIP_LAYOUTS = set()  # refine all slides including title
 
     for i, slide in enumerate(slides):
         # Skip slides with manually crafted prompts
