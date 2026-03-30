@@ -288,8 +288,19 @@ async function getSlidesAttributes(
 
 async function getSlidesAndSpeakerNotes(page: Page) {
   const slides_wrapper = await getSlidesWrapper(page);
+
+  // Wait for React to finish rendering slides (not just loading skeletons)
+  await page.waitForFunction(
+    () => {
+      const wrapper = document.getElementById('presentation-slides-wrapper');
+      if (!wrapper) return false;
+      return wrapper.querySelectorAll('div[data-speaker-note]').length > 0;
+    },
+    { timeout: 60000 }
+  );
+
   const speakerNotes = await getSpeakerNotes(slides_wrapper);
-  const slides = await slides_wrapper.$$(":scope > div > div");
+  const slides = await slides_wrapper.$$("div[data-speaker-note]");
   return { slides, speakerNotes };
 }
 
