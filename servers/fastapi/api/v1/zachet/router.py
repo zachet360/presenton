@@ -284,9 +284,9 @@ async def _generate_from_document_task(
         total_outlines = n_slides_to_generate
         log.end(
             outlines_count=len(presentation_outlines.slides),
-            summary=getattr(presentation_outlines, "summary", "")[:300],
+            summary=getattr(presentation_outlines, "summary", ""),
             outlines=[
-                {"content": s.content[:200], "source_excerpt": getattr(s, "source_excerpt", "")[:200]}
+                {"content": s.content, "source_excerpt": getattr(s, "source_excerpt", "")}
                 for s in presentation_outlines.slides
             ],
         )
