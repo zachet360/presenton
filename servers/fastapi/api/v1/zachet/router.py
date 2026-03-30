@@ -422,8 +422,8 @@ async def _generate_from_document_task(
         # 5.2. Clamp to exactly 1 illustration (YandexART infographic)
         _clamp_illustration_count(slides)
 
-        # 5.3. Set image orientation to match zachet template containers (~square)
-        _set_image_orientation(slides)
+        # 5.3. Remove orientation filter so Yandex returns most relevant images
+        _set_image_orientation(slides, orientation="")
 
         if async_status:
             async_status.message = "Fetching assets for slides"

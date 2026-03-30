@@ -72,17 +72,20 @@ class YandexImageService:
                 query = " ".join(words[:2])
                 print(f"[Yandex Search] Minimal query (attempt 3): '{query}'")
 
+            image_spec = {
+                "format": "IMAGE_FORMAT_JPEG",
+                "size": "IMAGE_SIZE_LARGE",
+            }
+            if orientation:
+                image_spec["orientation"] = orientation
+
             body = {
                 "query": {
                     "searchType": "SEARCH_TYPE_RU",
                     "queryText": query,
                     "familyMode": "FAMILY_MODE_STRICT",
                 },
-                "imageSpec": {
-                    "format": "IMAGE_FORMAT_JPEG",
-                    "size": "IMAGE_SIZE_LARGE",
-                    "orientation": orientation,
-                },
+                "imageSpec": image_spec,
                 "docsOnPage": "5",
                 "folderId": folder_id,
             }
