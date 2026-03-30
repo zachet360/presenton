@@ -237,6 +237,11 @@ async def _generate_from_document_task(
         include_toc = metadata.get("include_toc_slide", False)
         tone = metadata.get("tone", "educational")
         template = "zachet"
+        is_project = work_type.lower() in ("проект", "project", "исследование")
+
+        # For project work type, add 4 structural slides
+        if is_project:
+            n_slides += 4
 
         # Build content prompt from document
         content = f"Topic: {topic}\nWork type: {work_type}\n\nDocument content:\n{document_text}"
@@ -303,17 +308,37 @@ async def _generate_from_document_task(
         total_slide_layouts = len(layout_model.slides)
 
         if layout_model.ordered:
-            # For ordered templates (e.g. zachet): first=title, last=closing,
-            # middle slides cycle through content layouts (indices 1..N-2).
-            middle_layouts = list(range(1, total_slide_layouts - 1)) or [0]
+            # Zachet template indices:
+            # 0=Title, 1=Goal, 2=Tasks, 3=Problem, 4=Bullets, 5=Image,
+            # 6=Comparison, 7=Metrics, 8=Perspectives, 9=Closing
+            TITLE_IDX = 0
+            GOAL_IDX = 1
+            TASKS_IDX = 2
+            PROBLEM_IDX = 3
+            CONTENT_INDICES = [4, 5, 6, 7]  # Bullets, Image, Comparison, Metrics
+            PERSPECTIVES_IDX = 8
+            CLOSING_IDX = 9
+
             slides: List[int] = []
-            for i in range(total_outlines):
-                if i == 0:
-                    slides.append(0)
-                elif i == total_outlines - 1:
-                    slides.append(total_slide_layouts - 1)
-                else:
-                    slides.append(middle_layouts[(i - 1) % len(middle_layouts)])
+            if is_project:
+                # Project: Title → Goal → Tasks → Problem → [content...] → Perspectives → Closing
+                slides.append(TITLE_IDX)
+                slides.append(GOAL_IDX)
+                slides.append(TASKS_IDX)
+                slides.append(PROBLEM_IDX)
+                content_count = total_outlines - 6  # minus title, goal, tasks, problem, perspectives, closing
+                for c in range(max(content_count, 0)):
+                    slides.append(CONTENT_INDICES[c % len(CONTENT_INDICES)])
+                slides.append(PERSPECTIVES_IDX)
+                slides.append(CLOSING_IDX)
+            else:
+                # Default: Title → [content...] → Closing
+                slides.append(TITLE_IDX)
+                content_count = total_outlines - 2  # minus title, closing
+                for c in range(max(content_count, 0)):
+                    slides.append(CONTENT_INDICES[c % len(CONTENT_INDICES)])
+                slides.append(CLOSING_IDX)
+
             presentation_structure = PresentationStructureModel(slides=slides)
         else:
             presentation_structure = await generate_presentation_structure(

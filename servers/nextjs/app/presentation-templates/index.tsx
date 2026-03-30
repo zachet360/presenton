@@ -172,6 +172,10 @@ import ZachetImageSlideLayout, { Schema as ZachetImageSchema, layoutId as Zachet
 import ZachetComparisonSlideLayout, { Schema as ZachetComparisonSchema, layoutId as ZachetComparisonId, layoutName as ZachetComparisonName, layoutDescription as ZachetComparisonDesc } from "./zachet/ComparisonSlideLayout";
 import ZachetMetricsSlideLayout, { Schema as ZachetMetricsSchema, layoutId as ZachetMetricsId, layoutName as ZachetMetricsName, layoutDescription as ZachetMetricsDesc } from "./zachet/MetricsSlideLayout";
 import ZachetClosingSlideLayout, { Schema as ZachetClosingSchema, layoutId as ZachetClosingId, layoutName as ZachetClosingName, layoutDescription as ZachetClosingDesc } from "./zachet/ClosingSlideLayout";
+import ZachetGoalSlideLayout, { Schema as ZachetGoalSchema, layoutId as ZachetGoalId, layoutName as ZachetGoalName, layoutDescription as ZachetGoalDesc } from "./zachet/GoalSlideLayout";
+import ZachetTasksSlideLayout, { Schema as ZachetTasksSchema, layoutId as ZachetTasksId, layoutName as ZachetTasksName, layoutDescription as ZachetTasksDesc } from "./zachet/TasksSlideLayout";
+import ZachetProblemSlideLayout, { Schema as ZachetProblemSchema, layoutId as ZachetProblemId, layoutName as ZachetProblemName, layoutDescription as ZachetProblemDesc } from "./zachet/ProblemSlideLayout";
+import ZachetPerspectivesSlideLayout, { Schema as ZachetPerspectivesSchema, layoutId as ZachetPerspectivesId, layoutName as ZachetPerspectivesName, layoutDescription as ZachetPerspectivesDesc } from "./zachet/PerspectivesSlideLayout";
 
 // TODO: Step 2: Import template settings Here (like the ones below)
 // Template template settings
@@ -291,12 +295,20 @@ export const neoSwiftTemplates: TemplateWithData[] = [
 ]
 
 // Zachet templates array (ordered: title → content → closing)
+// Zachet template order:
+// 0: Title, 1: Goal*, 2: Tasks*, 3: Problem*, 4: Bullets, 5: Image,
+// 6: Comparison, 7: Metrics, 8: Perspectives*, 9: Closing
+// * = project-only structural slides (indices 1-3, 8)
 export const zachetTemplates: TemplateWithData[] = [
     createTemplateEntry(ZachetTitleSlideLayout, ZachetTitleSchema, ZachetTitleId, ZachetTitleName, ZachetTitleDesc, "zachet", "TitleSlideLayout"),
+    createTemplateEntry(ZachetGoalSlideLayout, ZachetGoalSchema, ZachetGoalId, ZachetGoalName, ZachetGoalDesc, "zachet", "GoalSlideLayout"),
+    createTemplateEntry(ZachetTasksSlideLayout, ZachetTasksSchema, ZachetTasksId, ZachetTasksName, ZachetTasksDesc, "zachet", "TasksSlideLayout"),
+    createTemplateEntry(ZachetProblemSlideLayout, ZachetProblemSchema, ZachetProblemId, ZachetProblemName, ZachetProblemDesc, "zachet", "ProblemSlideLayout"),
     createTemplateEntry(ZachetBulletsSlideLayout, ZachetBulletsSchema, ZachetBulletsId, ZachetBulletsName, ZachetBulletsDesc, "zachet", "BulletsSlideLayout"),
     createTemplateEntry(ZachetImageSlideLayout, ZachetImageSchema, ZachetImageId, ZachetImageName, ZachetImageDesc, "zachet", "ImageSlideLayout"),
     createTemplateEntry(ZachetComparisonSlideLayout, ZachetComparisonSchema, ZachetComparisonId, ZachetComparisonName, ZachetComparisonDesc, "zachet", "ComparisonSlideLayout"),
     createTemplateEntry(ZachetMetricsSlideLayout, ZachetMetricsSchema, ZachetMetricsId, ZachetMetricsName, ZachetMetricsDesc, "zachet", "MetricsSlideLayout"),
+    createTemplateEntry(ZachetPerspectivesSlideLayout, ZachetPerspectivesSchema, ZachetPerspectivesId, ZachetPerspectivesName, ZachetPerspectivesDesc, "zachet", "PerspectivesSlideLayout"),
     createTemplateEntry(ZachetClosingSlideLayout, ZachetClosingSchema, ZachetClosingId, ZachetClosingName, ZachetClosingDesc, "zachet", "ClosingSlideLayout"),
 ];
 
