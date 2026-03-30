@@ -214,6 +214,106 @@ def _set_image_orientation(
             image_dict["__image_orientation__"] = orientation
 
 
+def _make_all_required(schema: dict):
+    """Recursively ensure every property in JSON schema is required.
+
+    Zod `.default()` emits properties WITHOUT listing them in `required`,
+    so the LLM (with strict=False) may legally omit them → empty slides.
+    """
+    if not isinstance(schema, dict):
+        return
+    props = schema.get("properties")
+    if isinstance(props, dict):
+        schema["required"] = list(props.keys())
+        for prop_schema in props.values():
+            if isinstance(prop_schema, dict):
+                _make_all_required(prop_schema)
+    items = schema.get("items")
+    if isinstance(items, dict):
+        _make_all_required(items)
+    for key in ("$defs", "definitions"):
+        defs = schema.get(key)
+        if isinstance(defs, dict):
+            for def_schema in defs.values():
+                if isinstance(def_schema, dict):
+                    _make_all_required(def_schema)
+
+
+def _fill_defaults(content: dict, schema: dict) -> dict:
+    """Post-process LLM response: fill any missing fields from schema defaults.
+
+    Safety net for truncated JSON (dirtyjson parses partial output) or
+    fields the LLM skipped despite being required.
+    """
+    if not isinstance(content, dict) or not isinstance(schema, dict):
+        return content
+    properties = schema.get("properties", {})
+    for key, prop_schema in properties.items():
+        if not isinstance(prop_schema, dict):
+            continue
+        if key not in content:
+            if "default" in prop_schema:
+                content[key] = prop_schema["default"]
+            else:
+                ptype = prop_schema.get("type")
+                if ptype == "string":
+                    content[key] = ""
+                elif ptype == "array":
+                    content[key] = []
+                elif ptype == "object":
+                    content[key] = {}
+        elif isinstance(content[key], dict) and prop_schema.get("type") == "object":
+            _fill_defaults(content[key], prop_schema)
+        elif isinstance(content[key], list) and prop_schema.get("type") == "array":
+            items_schema = prop_schema.get("items", {})
+            if isinstance(items_schema, dict) and items_schema.get("type") == "object":
+                for item in content[key]:
+                    if isinstance(item, dict):
+                        _fill_defaults(item, items_schema)
+    return content
+
+
+def _pick_content_layout(outline_text: str, available: List[int]) -> int:
+    """Heuristic: choose the best content layout index for an outline.
+
+    available = subset of [4=Bullets, 5=Image, 6=Comparison, 7=Metrics]
+
+    Rules:
+      - keywords suggesting comparison/contrast → 6 (Comparison)
+      - keywords suggesting numbers/statistics → 7 (Metrics)
+      - short outline with many list-like lines → 4 (Bullets)
+      - otherwise → 5 (Image)
+    """
+    BULLETS_IDX, IMAGE_IDX, COMPARISON_IDX, METRICS_IDX = 4, 5, 6, 7
+    text = (outline_text or "").lower()
+
+    comparison_kw = [
+        "сравн", "против", "отлич", "разниц", "преимущест", "недостат",
+        "за и против", "плюс", "минус", "vs", "compar", "versus",
+        "differ", "advant", "disadvant",
+    ]
+    metrics_kw = [
+        "метрик", "статистик", "процент", "%", "число", "показател",
+        "данны", "рост", "снижен", "увеличен", "уменьшен",
+        "metric", "statistic", "percent", "number", "growth", "rate",
+        "kpi", "result",
+    ]
+
+    if any(kw in text for kw in comparison_kw) and COMPARISON_IDX in available:
+        return COMPARISON_IDX
+    if any(kw in text for kw in metrics_kw) and METRICS_IDX in available:
+        return METRICS_IDX
+
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    bullet_lines = sum(1 for l in lines if l.startswith(("-", "•", "*", "–")) or (len(l) > 1 and l[0].isdigit() and l[1] in ".)" ))
+    if bullet_lines >= 3 and BULLETS_IDX in available:
+        return BULLETS_IDX
+
+    if IMAGE_IDX in available:
+        return IMAGE_IDX
+    return available[0] if available else BULLETS_IDX
+
+
 # ──────────────────────────────────────────────────────────────
 # Background task
 # ──────────────────────────────────────────────────────────────
@@ -356,17 +456,32 @@ async def _generate_from_document_task(
             slides.append(GOAL_IDX)
             slides.append(TASKS_IDX)
             slides.append(PROBLEM_IDX)
+            content_start = 4  # first content outline index
             content_count = total_outlines - 6  # minus title, goal, tasks, problem, perspectives, closing
+            used_counts = {idx: 0 for idx in CONTENT_INDICES}
             for c in range(max(content_count, 0)):
-                slides.append(CONTENT_INDICES[c % len(CONTENT_INDICES)])
+                outline_text = presentation_outlines.slides[content_start + c].content if (content_start + c) < len(presentation_outlines.slides) else ""
+                # Prefer layouts not yet used; fall back to all
+                min_used = min(used_counts.values()) if used_counts else 0
+                prefer = [idx for idx, cnt in used_counts.items() if cnt == min_used]
+                chosen = _pick_content_layout(outline_text, prefer if prefer else CONTENT_INDICES)
+                used_counts[chosen] = used_counts.get(chosen, 0) + 1
+                slides.append(chosen)
             slides.append(PERSPECTIVES_IDX)
             slides.append(CLOSING_IDX)
         else:
             # Default: Title → [content...] → Closing
             slides.append(TITLE_IDX)
+            content_start = 1  # first content outline index
             content_count = total_outlines - 2  # minus title, closing
+            used_counts = {idx: 0 for idx in CONTENT_INDICES}
             for c in range(max(content_count, 0)):
-                slides.append(CONTENT_INDICES[c % len(CONTENT_INDICES)])
+                outline_text = presentation_outlines.slides[content_start + c].content if (content_start + c) < len(presentation_outlines.slides) else ""
+                min_used = min(used_counts.values()) if used_counts else 0
+                prefer = [idx for idx, cnt in used_counts.items() if cnt == min_used]
+                chosen = _pick_content_layout(outline_text, prefer if prefer else CONTENT_INDICES)
+                used_counts[chosen] = used_counts.get(chosen, 0) + 1
+                slides.append(chosen)
             slides.append(CLOSING_IDX)
 
         presentation_structure = PresentationStructureModel(slides=slides)
@@ -437,6 +552,10 @@ async def _generate_from_document_task(
         slide_layout_indices = presentation_structure.slides
         slide_layouts = [layout_model.slides[idx] for idx in slide_layout_indices]
 
+        # FIX: make every property required so LLM cannot skip fields
+        for layout in slide_layouts:
+            _make_all_required(layout.json_schema)
+
         # Build per-slide presentation context from summary + source_excerpt
         document_summary = getattr(presentation_outlines, "summary", "") or ""
 
@@ -469,12 +588,14 @@ async def _generate_from_document_task(
 
             for offset, slide_content in enumerate(batch_contents):
                 i = start + offset
+                # FIX: fill any fields the LLM missed (truncated JSON, etc.)
+                _fill_defaults(slide_content, slide_layouts[i].json_schema)
                 slide = SlideModel(
                     presentation=presentation_id,
                     layout_group=layout_model.name,
                     layout=slide_layouts[i].id,
                     index=i,
-                    speaker_note=slide_content.get("__speaker_note__"),
+                    speaker_note=slide_content.get("__speaker_note__") or "",
                     content=slide_content,
                 )
                 slides.append(slide)
