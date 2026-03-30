@@ -66,19 +66,17 @@ const ImageSlideLayout: React.FC<ImageSlideLayoutProps> = ({ data: slideData }) 
 
             {/* Right: Image */}
             <div className="w-1/2 p-6 flex items-center justify-center">
-                <div className="w-full h-full rounded-xl overflow-hidden">
-                    {slideData?.image?.__image_url__ ? (
-                        <img
-                            src={slideData.image.__image_url__}
-                            alt={slideData.image.__image_prompt__ || slideData?.title || ''}
-                            className="w-full h-full object-cover"
-                        />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center" style={{ background: 'var(--card-color, #f3f4f6)' }}>
-                            <span className="text-sm" style={{ color: 'var(--background-text, #9ca3af)' }}>Image</span>
-                        </div>
-                    )}
-                </div>
+                {slideData?.image?.__image_url__ ? (
+                    <img
+                        src={slideData.image.__image_url__}
+                        alt={slideData.image.__image_prompt__ || slideData?.title || ''}
+                        className="max-w-full max-h-full rounded-xl object-contain"
+                    />
+                ) : (
+                    <div className="w-full aspect-video rounded-xl flex items-center justify-center" style={{ background: 'var(--card-color, #f3f4f6)' }}>
+                        <span className="text-sm" style={{ color: 'var(--background-text, #9ca3af)' }}>Image</span>
+                    </div>
+                )}
             </div>
         </div>
     )

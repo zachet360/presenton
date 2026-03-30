@@ -132,6 +132,41 @@ async def _refine_image_prompts(
         # on error — keep the original __image_prompt__ from LLM #3
 
 
+def _clamp_illustration_count(slides: List[SlideModel], target: int = 1):
+    """Ensure exactly `target` slides use __image_type__='illustration' (→ YandexART).
+
+    Skips the first slide (title) and the last slide (closing).
+    If LLM chose more — keep only the first `target`, switch the rest to 'photo'.
+    If LLM chose fewer — promote the first eligible image slide to 'illustration'.
+    """
+    from utils.dict_utils import get_dict_paths_with_key, get_dict_at_path
+
+    illustration_dicts: list = []
+    photo_dicts: list = []
+
+    eligible_slides = slides[1:-1] if len(slides) > 2 else slides
+
+    for slide in eligible_slides:
+        image_paths = get_dict_paths_with_key(slide.content, "__image_prompt__")
+        for path in image_paths:
+            image_dict = get_dict_at_path(slide.content, path)
+            if image_dict.get("__image_type__") == "illustration":
+                illustration_dicts.append(image_dict)
+            else:
+                photo_dicts.append(image_dict)
+
+    # Too many illustrations — demote extras to photo
+    while len(illustration_dicts) > target:
+        demoted = illustration_dicts.pop()
+        demoted["__image_type__"] = "photo"
+
+    # Too few illustrations — promote from photos
+    while len(illustration_dicts) < target and photo_dicts:
+        promoted = photo_dicts.pop(0)
+        promoted["__image_type__"] = "illustration"
+        illustration_dicts.append(promoted)
+
+
 # ──────────────────────────────────────────────────────────────
 # Background task
 # ──────────────────────────────────────────────────────────────
@@ -368,6 +403,9 @@ async def _generate_from_document_task(
             await sql_session.commit()
 
         await _refine_image_prompts(slides, presentation_outlines, document_summary)
+
+        # 5.2. Clamp to exactly 1 illustration (YandexART infographic)
+        _clamp_illustration_count(slides)
 
         if async_status:
             async_status.message = "Fetching assets for slides"
