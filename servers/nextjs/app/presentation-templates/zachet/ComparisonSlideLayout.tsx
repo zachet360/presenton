@@ -71,7 +71,7 @@ const ComparisonSlideLayout: React.FC<ComparisonSlideLayoutProps> = ({ data: sli
 
                     <div className="flex gap-[36px] flex-1">
                         {/* Left card */}
-                        <div className="flex-1 rounded-[3.4px] p-[41px] flex flex-col" style={{ background: 'var(--card-color, #F7F8FF)', border: '1px solid var(--stroke, #F0F0F2)' }}>
+                        <div className="flex-1 rounded p-[41px] flex flex-col" style={{ background: 'var(--card-color, #F7F8FF)', border: '1px solid var(--stroke, #F0F0F2)' }}>
                             <div className="h-[4px] w-[60px] rounded-full mb-5" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
                             <h2 className="font-bold mb-4" style={{ fontSize: '28.4px', color: 'var(--background-text, #002BB2)' }}>
                                 {left.heading}
@@ -87,7 +87,7 @@ const ComparisonSlideLayout: React.FC<ComparisonSlideLayoutProps> = ({ data: sli
                         </div>
 
                         {/* Right card */}
-                        <div className="flex-1 rounded-[3.4px] p-[41px] flex flex-col" style={{ background: 'var(--card-color, #F7F8FF)', border: '1px solid var(--stroke, #F0F0F2)' }}>
+                        <div className="flex-1 rounded p-[41px] flex flex-col" style={{ background: 'var(--card-color, #F7F8FF)', border: '1px solid var(--stroke, #F0F0F2)' }}>
                             <div className="h-[4px] w-[60px] rounded-full mb-5" style={{ background: 'var(--stroke, #4C68DF)', opacity: 0.5 }} />
                             <h2 className="font-bold mb-4" style={{ fontSize: '28.4px', color: 'var(--background-text, #002BB2)' }}>
                                 {right.heading}

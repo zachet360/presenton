@@ -71,7 +71,7 @@ const BulletsSlideLayout: React.FC<BulletsSlideLayoutProps> = ({ data: slideData
                         {bullets.map((bullet, i) => (
                             <div
                                 key={i}
-                                className="flex items-start gap-4 p-4 rounded-[3.4px]"
+                                className="flex items-start gap-4 p-4 rounded"
                                 style={{ background: 'var(--card-color, #F7F8FF)', borderLeft: '4px solid var(--stroke, #4C68DF)' }}
                             >
                                 <div

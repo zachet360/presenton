@@ -92,7 +92,7 @@ const MetricsSlideLayout: React.FC<MetricsSlideLayoutProps> = ({ data: slideData
                             return (
                                 <div
                                     key={i}
-                                    className="rounded-[3.4px] p-[28px]"
+                                    className="rounded p-[28px]"
                                     style={{ background: 'var(--card-color, #F7F8FF)', border: '1px solid var(--stroke, #F0F0F2)' }}
                                 >
                                     <div className="flex items-baseline justify-between mb-2">

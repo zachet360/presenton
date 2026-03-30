@@ -67,7 +67,7 @@ const PerspectivesSlideLayout: React.FC<PerspectivesSlideLayoutProps> = ({ data:
                         {points.map((point, i) => (
                             <div
                                 key={i}
-                                className="flex items-start gap-4 p-5 rounded-[3.4px]"
+                                className="flex items-start gap-4 p-5 rounded"
                                 style={{ background: i === 0 ? 'var(--primary-color, #6B89E6)' : 'var(--card-color, #F7F8FF)', border: i === 0 ? 'none' : '1px solid var(--stroke, #F0F0F2)' }}
                             >
                                 <div
