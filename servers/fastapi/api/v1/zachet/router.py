@@ -60,6 +60,8 @@ from utils.ppt_utils import (
     select_toc_or_list_slide_layout_index,
 )
 from utils.process_slides import process_slide_and_fetch_assets
+from api.v1.zachet.generation_logger import GenerationLogger
+from models.sql.generation_log import GenerationLogModel
 
 
 ZACHET_ROUTER = APIRouter(prefix="/presentation", tags=["Zachet Integration"])
@@ -196,6 +198,14 @@ async def _generate_from_document_task(
 ):
     """Background task: extract text from .docx, generate presentation, call webhook."""
     work_id = metadata.get("work_id", "")
+    log = GenerationLogger(filename=os.path.basename(file_path))
+    gen_log_model = GenerationLogModel(
+        presentation_id=presentation_id,
+        filename=os.path.basename(file_path),
+    )
+    sql_session.add(gen_log_model)
+    await sql_session.commit()
+
     try:
         # Update status to processing
         async_status = await sql_session.get(
@@ -209,6 +219,7 @@ async def _generate_from_document_task(
             await sql_session.commit()
 
         # 1. Extract text from document
+        log.begin("extract_text", file_path=file_path)
         documents_loader = DocumentsLoader(file_paths=[file_path])
         await documents_loader.load_documents()
         documents = documents_loader.documents
@@ -216,6 +227,7 @@ async def _generate_from_document_task(
 
         if not document_text.strip():
             raise Exception("Could not extract text from the uploaded document")
+        log.end(text_length=len(document_text), preview=document_text[:500])
 
         topic = metadata.get("topic", "")
         work_type = metadata.get("work_type", "essay")
@@ -245,6 +257,7 @@ async def _generate_from_document_task(
                 (n_slides - needed_toc_count) / 10
             )
 
+        log.begin("generate_outlines_llm1", n_slides=n_slides_to_generate, language=language, tone=tone)
         presentation_outlines_text = ""
         async for chunk in generate_zachet_outlines(
             content,
@@ -269,6 +282,14 @@ async def _generate_from_document_task(
 
         presentation_outlines = ZachetPresentationOutlineModel(**presentation_outlines_json)
         total_outlines = n_slides_to_generate
+        log.end(
+            outlines_count=len(presentation_outlines.slides),
+            summary=getattr(presentation_outlines, "summary", "")[:300],
+            outlines=[
+                {"content": s.content[:200], "source_excerpt": getattr(s, "source_excerpt", "")[:200]}
+                for s in presentation_outlines.slides
+            ],
+        )
 
         # 3. Select layout and structure
         if async_status:
@@ -277,6 +298,7 @@ async def _generate_from_document_task(
             sql_session.add(async_status)
             await sql_session.commit()
 
+        log.begin("select_layout", template=template)
         layout_model = await get_layout_by_name(template)
         total_slide_layouts = len(layout_model.slides)
 
@@ -309,6 +331,13 @@ async def _generate_from_document_task(
                     continue
                 if presentation_structure.slides[index] >= total_slide_layouts:
                     presentation_structure.slides[index] = random_slide_index
+
+        log.end(
+            ordered=layout_model.ordered,
+            total_layouts=total_slide_layouts,
+            structure=presentation_structure.slides,
+            layout_names=[s.name or s.id for s in layout_model.slides],
+        )
 
         # Handle TOC
         if include_toc:
@@ -361,6 +390,7 @@ async def _generate_from_document_task(
             sql_session.add(async_status)
             await sql_session.commit()
 
+        log.begin("generate_slide_content_llm3", total_slides=len(presentation_structure.slides))
         image_generation_service = ImageGenerationService(get_images_directory())
         slides: List[SlideModel] = []
         generated_assets = []
@@ -409,6 +439,15 @@ async def _generate_from_document_task(
                     content=slide_content,
                 )
                 slides.append(slide)
+                log.add_substep("generate_slide_content_llm3", {
+                    "slide_index": i,
+                    "layout": slide_layouts[i].id,
+                    "content_keys": list(slide_content.keys()),
+                    "image_prompt": slide_content.get("image", {}).get("__image_prompt__") if isinstance(slide_content.get("image"), dict) else None,
+                    "image_type": slide_content.get("image", {}).get("__image_type__") if isinstance(slide_content.get("image"), dict) else None,
+                })
+
+        log.end(slides_generated=len(slides))
 
         # 5.1. Regenerate image prompts with full slide context (LLM #4)
         if async_status:
@@ -417,10 +456,20 @@ async def _generate_from_document_task(
             sql_session.add(async_status)
             await sql_session.commit()
 
+        log.begin("refine_image_prompts_llm4")
         await _refine_image_prompts(slides, presentation_outlines, document_summary)
+        log.end(refined_slides=[
+            {"index": i, "image_prompt": s.content.get("image", {}).get("__image_prompt__"), "image_type": s.content.get("image", {}).get("__image_type__")}
+            for i, s in enumerate(slides) if isinstance(s.content.get("image"), dict)
+        ])
 
         # 5.2. Clamp to exactly 1 illustration (YandexART infographic)
+        log.begin("clamp_illustrations")
         _clamp_illustration_count(slides)
+        log.end(result=[
+            {"index": i, "type": s.content.get("image", {}).get("__image_type__")}
+            for i, s in enumerate(slides) if isinstance(s.content.get("image"), dict)
+        ])
 
         # 5.3. Remove orientation filter so Yandex returns most relevant images
         _set_image_orientation(slides, orientation="")
@@ -432,9 +481,19 @@ async def _generate_from_document_task(
             await sql_session.commit()
 
         # Fetch assets sequentially to avoid rate limits
+        log.begin("fetch_assets")
         for slide in slides:
             assets = await process_slide_and_fetch_assets(image_generation_service, slide)
             generated_assets.extend(assets)
+            image_info = slide.content.get("image") if isinstance(slide.content.get("image"), dict) else None
+            if image_info:
+                log.add_substep("fetch_assets", {
+                    "slide_index": slide.index,
+                    "image_prompt": image_info.get("__image_prompt__"),
+                    "image_type": image_info.get("__image_type__"),
+                    "image_url": image_info.get("__image_url__"),
+                })
+        log.end(total_assets=len(generated_assets))
 
         # 6. Save to DB
         sql_session.add(presentation)
@@ -449,9 +508,11 @@ async def _generate_from_document_task(
             sql_session.add(async_status)
             await sql_session.commit()
 
+        log.begin("export_pptx")
         presentation_and_path = await export_presentation(
             presentation_id, presentation.title or str(uuid.uuid4()), "pptx"
         )
+        log.end(path=presentation_and_path.path)
 
         # 8. Mark completed
         if async_status:
@@ -464,6 +525,15 @@ async def _generate_from_document_task(
             async_status.updated_at = datetime.now()
             sql_session.add(async_status)
             await sql_session.commit()
+
+        # Save generation log
+        gen_log_model.presentation_id = presentation_id
+        gen_log_model.status = "completed"
+        gen_log_model.finished_at = datetime.now()
+        gen_log_model.total_duration_ms = log.total_duration_ms()
+        gen_log_model.steps = log.steps
+        sql_session.add(gen_log_model)
+        await sql_session.commit()
 
         # 9. Fire callback webhook
         if callback_url:
@@ -478,6 +548,19 @@ async def _generate_from_document_task(
     except Exception as e:
         traceback.print_exc()
         error_msg = str(e) if str(e) else "Presentation generation failed"
+        log.end_with_error(error_msg)
+
+        # Save generation log on failure
+        try:
+            gen_log_model.status = "failed"
+            gen_log_model.finished_at = datetime.now()
+            gen_log_model.total_duration_ms = log.total_duration_ms()
+            gen_log_model.steps = log.steps
+            gen_log_model.error = error_msg
+            sql_session.add(gen_log_model)
+            await sql_session.commit()
+        except Exception:
+            pass
 
         # Update async status
         try:
@@ -508,6 +591,55 @@ async def _generate_from_document_task(
 # ──────────────────────────────────────────────────────────────
 # Endpoints
 # ──────────────────────────────────────────────────────────────
+
+
+@ZACHET_ROUTER.get("/logs")
+async def list_generation_logs(
+    sql_session: AsyncSession = Depends(get_async_session),
+):
+    """List all generation logs, newest first."""
+    from sqlalchemy import select
+
+    result = await sql_session.execute(
+        select(GenerationLogModel).order_by(GenerationLogModel.started_at.desc())
+    )
+    logs = result.scalars().all()
+    return [
+        {
+            "id": str(lg.id),
+            "presentation_id": str(lg.presentation_id) if lg.presentation_id else None,
+            "filename": lg.filename,
+            "status": lg.status,
+            "started_at": lg.started_at.isoformat() if lg.started_at else None,
+            "finished_at": lg.finished_at.isoformat() if lg.finished_at else None,
+            "total_duration_ms": lg.total_duration_ms,
+            "error": lg.error,
+            "steps_count": len(lg.steps) if lg.steps else 0,
+        }
+        for lg in logs
+    ]
+
+
+@ZACHET_ROUTER.get("/logs/{log_id}")
+async def get_generation_log(
+    log_id: uuid.UUID,
+    sql_session: AsyncSession = Depends(get_async_session),
+):
+    """Get full generation log with all steps."""
+    lg = await sql_session.get(GenerationLogModel, log_id)
+    if not lg:
+        raise HTTPException(status_code=404, detail="Generation log not found")
+    return {
+        "id": str(lg.id),
+        "presentation_id": str(lg.presentation_id) if lg.presentation_id else None,
+        "filename": lg.filename,
+        "status": lg.status,
+        "started_at": lg.started_at.isoformat() if lg.started_at else None,
+        "finished_at": lg.finished_at.isoformat() if lg.finished_at else None,
+        "total_duration_ms": lg.total_duration_ms,
+        "error": lg.error,
+        "steps": lg.steps or [],
+    }
 
 
 @ZACHET_ROUTER.post("/generate-from-document")
