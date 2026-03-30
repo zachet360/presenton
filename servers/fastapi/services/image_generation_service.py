@@ -184,7 +184,7 @@ class ImageGenerationService:
         from services.yandex_image_service import YandexImageService
 
         image_prompt = prompt.get_image_prompt(with_theme=image_type == "illustration")
-        orientation = image_orientation or "IMAGE_ORIENTATION_HORIZONTAL"
+        orientation = image_orientation if image_orientation is not None else "IMAGE_ORIENTATION_HORIZONTAL"
         print(f"Yandex image fetch: type={image_type} orientation={orientation} prompt={image_prompt}")
 
         yandex = YandexImageService()
