@@ -73,23 +73,23 @@ const MetricsSlideLayout: React.FC<MetricsSlideLayoutProps> = ({ data: slideData
                         {metrics.map((metric, i) => (
                             <div
                                 key={i}
-                                className="text-center p-[28px] rounded"
-                                style={{ background: 'var(--card-color, #F7F8FF)', border: '1px solid var(--stroke, #F0F0F2)' }}
+                                className="text-center rounded"
+                                style={{ padding: metrics.length >= 4 ? '20px 14px' : '28px', background: 'var(--card-color, #F7F8FF)', border: '1px solid var(--stroke, #F0F0F2)' }}
                             >
                                 <div
                                     className="font-bold mb-3"
-                                    style={{ fontSize: '40px', color: 'var(--primary-color, #1F4CD9)' }}
+                                    style={{ fontSize: metrics.length >= 4 ? '26px' : '40px', color: 'var(--primary-color, #1F4CD9)', wordBreak: 'break-word' }}
                                 >
                                     {metric.value}
                                 </div>
                                 <div
                                     className="font-semibold mb-1"
-                                    style={{ fontSize: '15px', color: 'var(--background-text, #002BB2)' }}
+                                    style={{ fontSize: metrics.length >= 4 ? '13px' : '15px', color: 'var(--background-text, #002BB2)' }}
                                 >
                                     {metric.label}
                                 </div>
                                 <div
-                                    style={{ fontSize: '13px', lineHeight: '1.5', color: 'var(--background-text, #002BB2)', opacity: 0.6 }}
+                                    style={{ fontSize: metrics.length >= 4 ? '12px' : '13px', lineHeight: '1.5', color: 'var(--background-text, #002BB2)', opacity: 0.6 }}
                                 >
                                     {metric.description}
                                 </div>

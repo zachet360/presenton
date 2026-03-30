@@ -177,8 +177,7 @@ def _clamp_illustration_count(slides: List[SlideModel], target: int = 1):
 
 
 def _override_title_image_prompt(slides: List[SlideModel]):
-    """For the title slide: replace image prompt with an abstract cover image
-    and force illustration so YandexART generates it."""
+    """For the title slide: set a clean search query from the title for Yandex Search."""
     TITLE_LAYOUT = "zachet:zachet-title-slide"
 
     for slide in slides:
@@ -189,11 +188,8 @@ def _override_title_image_prompt(slides: List[SlideModel]):
             continue
 
         title = slide.content.get("title", "")
-        subtitle = slide.content.get("subtitle", "")
-        img["__image_prompt__"] = (
-            f"обложка презентации: {title}. {subtitle}. "
-            f"Изображение должно быть релевантным теме и подходить как титульное"
-        )
+        # Clean search query: just the topic, no fluff
+        img["__image_prompt__"] = title
         img["__image_type__"] = "photo"
 
 
