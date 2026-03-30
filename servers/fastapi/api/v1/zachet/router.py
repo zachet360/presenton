@@ -102,11 +102,11 @@ async def _refine_image_prompts(
     tasks = []
     task_targets = []  # (slide_index, image_dict) for each task
 
-    METRICS_LAYOUT = "zachet:zachet-metrics-slide"
+    SKIP_LAYOUTS = {"zachet:zachet-metrics-slide", "zachet:zachet-title-slide"}
 
     for i, slide in enumerate(slides):
-        # Skip metrics slides — their prompts are crafted from actual data
-        if slide.layout == METRICS_LAYOUT:
+        # Skip slides with manually crafted prompts
+        if slide.layout in SKIP_LAYOUTS:
             continue
 
         image_paths = get_dict_paths_with_key(slide.content, "__image_prompt__")
@@ -147,15 +147,15 @@ def _clamp_illustration_count(slides: List[SlideModel], target: int = 1):
     """
     from utils.dict_utils import get_dict_paths_with_key, get_dict_at_path
 
-    METRICS_LAYOUT = "zachet:zachet-metrics-slide"
+    SKIP_LAYOUTS = {"zachet:zachet-metrics-slide", "zachet:zachet-title-slide"}
     illustration_dicts: list = []
     photo_dicts: list = []
 
     eligible_slides = slides[1:-1] if len(slides) > 2 else slides
 
     for slide in eligible_slides:
-        if slide.layout == METRICS_LAYOUT:
-            continue  # metrics handled separately
+        if slide.layout in SKIP_LAYOUTS:
+            continue  # title and metrics handled separately
         image_paths = get_dict_paths_with_key(slide.content, "__image_prompt__")
         for path in image_paths:
             image_dict = get_dict_at_path(slide.content, path)
@@ -174,6 +174,27 @@ def _clamp_illustration_count(slides: List[SlideModel], target: int = 1):
         promoted = photo_dicts.pop(0)
         promoted["__image_type__"] = "illustration"
         illustration_dicts.append(promoted)
+
+
+def _override_title_image_prompt(slides: List[SlideModel]):
+    """For the title slide: replace image prompt with an abstract cover image
+    and force illustration so YandexART generates it."""
+    TITLE_LAYOUT = "zachet:zachet-title-slide"
+
+    for slide in slides:
+        if slide.layout != TITLE_LAYOUT:
+            continue
+        img = slide.content.get("image")
+        if not isinstance(img, dict):
+            continue
+
+        title = slide.content.get("title", "")
+        subtitle = slide.content.get("subtitle", "")
+        img["__image_prompt__"] = (
+            f"красивая абстрактная обложка для презентации на тему: {title}. "
+            f"{subtitle}. Профессиональный минималистичный дизайн, градиент"
+        )
+        img["__image_type__"] = "illustration"
 
 
 def _override_metrics_image_prompts(slides: List[SlideModel]):
@@ -500,7 +521,8 @@ async def _generate_from_document_task(
             if isinstance(img, dict) and "__image_prompt__" in img and not img.get("__image_type__"):
                 img["__image_type__"] = "photo"
 
-        # 5.0.2 For metrics slides: craft YandexART prompt from actual data
+        # 5.0.2 Override image prompts for title and metrics slides
+        _override_title_image_prompt(slides)
         _override_metrics_image_prompts(slides)
 
         # 5.1. Regenerate image prompts with full slide context (LLM #4)
