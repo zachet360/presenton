@@ -72,7 +72,6 @@ const TitleSlideLayout: React.FC<TitleSlideLayoutProps> = ({ data: slideData }) 
                     >
                         {slideData?.title || 'Presentation Title'}
                     </h1>
-                    <div className="w-[60px] h-[4px] rounded-[4px] mb-3" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
                     <p
                         className="text-center max-w-2xl mb-4"
                         style={{ fontSize: '16px', lineHeight: '1.6', color: 'var(--background-text, #002BB2)', opacity: 0.7 }}

@@ -56,7 +56,6 @@ const ProblemSlideLayout: React.FC<ProblemSlideLayoutProps> = ({ data: slideData
                     >
                         {slideData?.title || 'Проблема'}
                     </h1>
-                    <div className="w-[60px] h-[4px] rounded-[4px] mx-auto mb-6" style={{ background: '#E8453C' }} />
                     <p style={{ fontSize: '18px', lineHeight: '1.7', color: 'var(--background-text, #002BB2)', opacity: 0.8 }}>
                         {slideData?.problem || ''}
                     </p>

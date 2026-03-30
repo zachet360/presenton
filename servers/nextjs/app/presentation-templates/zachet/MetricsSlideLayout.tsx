@@ -10,6 +10,9 @@ const metricsSlideSchema = z.object({
     title: z.string().min(3).max(60).default('Key Metrics').meta({
         description: "Slide title",
     }),
+    description: z.string().min(10).max(150).default('An overview of the most important metrics and numbers related to this topic.').meta({
+        description: "Brief description of the metrics context",
+    }),
     metrics: z.array(z.object({
         value: z.string().min(1).max(12).meta({
             description: "Metric value (e.g., 95%, 150+, $2M). Keep short.",
@@ -63,11 +66,16 @@ const MetricsSlideLayout: React.FC<MetricsSlideLayoutProps> = ({ data: slideData
                 {/* Left: Title + Metrics */}
                 <div className="w-[50%] flex flex-col justify-center px-[52px] pt-[60px] pb-[40px]">
                     <h1
-                        className="font-bold mb-6"
+                        className="font-bold mb-2"
                         style={{ fontSize: '42px', letterSpacing: '-1px', lineHeight: '1.1', color: 'var(--background-text, #002BB2)' }}
                     >
                         {slideData?.title || 'Key Metrics'}
                     </h1>
+                    {slideData?.description && (
+                        <p className="mb-5" style={{ fontSize: '15px', lineHeight: '1.6', color: 'var(--background-text, #002BB2)', opacity: 0.7 }}>
+                            {slideData.description}
+                        </p>
+                    )}
                     <div className="flex flex-col gap-[16px]">
                         {metrics.map((metric, i) => (
                             <div

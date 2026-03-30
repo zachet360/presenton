@@ -58,7 +58,6 @@ const TasksSlideLayout: React.FC<TasksSlideLayoutProps> = ({ data: slideData }) 
                         >
                             {slideData?.title || 'Задачи'}
                         </h1>
-                        <div className="w-[60px] h-[4px] rounded-[4px] mt-4" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
                     </div>
 
                     {/* Right: Numbered tasks */}

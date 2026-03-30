@@ -54,7 +54,6 @@ const ClosingSlideLayout: React.FC<ClosingSlideLayoutProps> = ({ data: slideData
                     >
                         {slideData?.title || 'Thank You'}
                     </h1>
-                    <div className="w-[60px] h-[4px] rounded-[4px] mx-auto mb-6" style={{ background: 'var(--primary-color, #1F4CD9)' }} />
                     <p style={{ fontSize: '16px', lineHeight: '1.7', color: 'var(--background-text, #002BB2)', opacity: 0.7 }}>
                         {slideData?.summary || ''}
                     </p>
