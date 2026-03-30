@@ -447,6 +447,12 @@ async def _generate_from_document_task(
 
         log.end(slides_generated=len(slides))
 
+        # 5.0.1 Default missing __image_type__ to "photo"
+        for slide in slides:
+            img = slide.content.get("image")
+            if isinstance(img, dict) and "__image_prompt__" in img and not img.get("__image_type__"):
+                img["__image_type__"] = "photo"
+
         # 5.1. Regenerate image prompts with full slide context (LLM #4)
         if async_status:
             async_status.message = "Optimising image search queries"
