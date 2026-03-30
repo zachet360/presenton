@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import os
+import re
 import uuid
 import xml.etree.ElementTree as ET
 
@@ -10,10 +11,28 @@ import aiohttp
 from utils.get_env import get_yandex_api_key_env, get_yandex_cloud_folder_id_env
 
 
+def _normalize(text: str) -> set[str]:
+    """Lowercase and split into word set for matching."""
+    return set(re.sub(r"[^\w\s]", "", text.lower()).split())
+
+
+def _relevance_score(result: dict, query_words: set[str]) -> float:
+    """Score a search result by how many query words appear in its title/passage."""
+    title_words = _normalize(result.get("title", ""))
+    passage_words = _normalize(result.get("passage", ""))
+    all_words = title_words | passage_words
+    if not query_words:
+        return 0
+    return len(query_words & all_words) / len(query_words)
+
+
 class YandexImageService:
     SEARCH_URL = "https://searchapi.api.cloud.yandex.net/v2/image/search"
     ART_URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/imageGenerationAsync"
     OPERATION_URL = "https://operation.api.cloud.yandex.net/operations"
+
+    MIN_IMAGE_BYTES = 5_000  # skip tiny images / broken downloads
+    MIN_IMAGE_WIDTH = 400    # skip thumbnails
 
     def _get_headers(self) -> dict:
         api_key = get_yandex_api_key_env()
@@ -37,7 +56,7 @@ class YandexImageService:
                         print(f"[Yandex Search] Download failed ({resp.status}): {url[:80]}")
                         return None
                     data = await resp.read()
-                    if len(data) < 1000:
+                    if len(data) < self.MIN_IMAGE_BYTES:
                         print(f"[Yandex Search] Image too small ({len(data)} bytes), skipping: {url[:80]}")
                         return None
                     ext = "jpg"
@@ -58,18 +77,21 @@ class YandexImageService:
     async def search_image(
         self, query: str, output_directory: str, orientation: str = "IMAGE_ORIENTATION_HORIZONTAL",
     ) -> str | None:
-        """Search Yandex Images. Downloads first result locally. Returns file path or None."""
+        """Search Yandex Images with relevance ranking. Returns file path or None."""
         print(f"[Yandex Search] Starting search for: '{query}' (orientation={orientation})")
         headers = self._get_headers()
         folder_id = self._get_folder_id()
         words = query.split()
+        query_words = _normalize(query)
 
         for attempt in range(3):
             if attempt == 1 and len(words) > 2:
                 query = " ".join(words[:3])
+                query_words = _normalize(query)
                 print(f"[Yandex Search] Shortened query (attempt 2): '{query}'")
             elif attempt == 2 and len(words) > 1:
                 query = " ".join(words[:2])
+                query_words = _normalize(query)
                 print(f"[Yandex Search] Minimal query (attempt 3): '{query}'")
 
             image_spec = {
@@ -86,7 +108,7 @@ class YandexImageService:
                     "familyMode": "FAMILY_MODE_STRICT",
                 },
                 "imageSpec": image_spec,
-                "docsOnPage": "5",
+                "docsOnPage": "10",
                 "folderId": folder_id,
             }
 
@@ -115,25 +137,42 @@ class YandexImageService:
                 print(f"[Yandex Search] Could not extract XML from response")
                 return None
 
-            urls = self._parse_image_urls_from_xml(xml_text)
-            if not urls:
+            results = self._parse_results_from_xml(xml_text)
+            if not results:
                 print(f"[Yandex Search] 0 results for '{query}' (attempt {attempt + 1}/3)")
                 continue
 
-            # Try downloading each URL until one succeeds
-            for i, url in enumerate(urls):
-                print(f"[Yandex Search] Trying URL {i + 1}/{len(urls)}: {url[:80]}")
-                local_path = await self._download_image(url, output_directory)
+            # Filter out too-small images by reported dimensions
+            filtered = []
+            for r in results:
+                w = r.get("width", 0)
+                if w and w < self.MIN_IMAGE_WIDTH:
+                    print(f"[Yandex Search] Skipping {r['url'][:60]} — too narrow ({w}px)")
+                    continue
+                filtered.append(r)
+            if not filtered:
+                filtered = results  # fallback: don't discard everything
+
+            # Score by relevance to query
+            for r in filtered:
+                r["_score"] = _relevance_score(r, query_words)
+            filtered.sort(key=lambda r: r["_score"], reverse=True)
+
+            print(f"[Yandex Search] {len(filtered)} candidates, scores: {[round(r['_score'], 2) for r in filtered[:5]]}")
+
+            # Download in score order
+            for i, r in enumerate(filtered):
+                print(f"[Yandex Search] Trying #{i + 1} (score={r['_score']:.2f}): {r['url'][:80]}")
+                local_path = await self._download_image(r["url"], output_directory)
                 if local_path:
                     return local_path
-            print(f"[Yandex Search] All {len(urls)} URLs failed to download (attempt {attempt + 1}/3)")
+            print(f"[Yandex Search] All {len(filtered)} URLs failed to download (attempt {attempt + 1}/3)")
 
         print(f"[Yandex Search] All 3 attempts failed")
         return None
 
     def _extract_xml_from_response(self, response_text: str) -> str | None:
         """Extract XML from Yandex API response. Response is JSON with base64-encoded XML in rawData."""
-        # Try JSON with base64 rawData first
         try:
             data = json.loads(response_text)
             raw_data = data.get("rawData")
@@ -147,7 +186,6 @@ class YandexImageService:
         except (json.JSONDecodeError, ValueError):
             pass
 
-        # Maybe it's already XML
         if response_text.strip().startswith("<?xml") or response_text.strip().startswith("<"):
             print(f"[Yandex Search] Response is raw XML")
             return response_text
@@ -155,23 +193,75 @@ class YandexImageService:
         print(f"[Yandex Search] Unknown response format. Preview: {response_text[:200]}")
         return None
 
-    def _parse_image_urls_from_xml(self, xml_text: str) -> list[str]:
-        """Extract image URLs from Yandex Search XML response."""
+    def _parse_results_from_xml(self, xml_text: str) -> list[dict]:
+        """Parse image search results with metadata from Yandex XML response."""
         try:
             root = ET.fromstring(xml_text)
-            urls_found = []
+        except ET.ParseError as e:
+            print(f"[Yandex Search] XML parse error: {e}")
+            return []
+
+        ns = ""
+        # Detect namespace
+        if root.tag.startswith("{"):
+            ns = root.tag.split("}")[0] + "}"
+
+        results = []
+
+        # Find all doc/group elements that contain image results
+        for doc in root.iter(f"{ns}doc"):
+            url_el = doc.find(f"{ns}url")
+            if url_el is None or not url_el.text or not url_el.text.startswith("http"):
+                continue
+
+            title = ""
+            title_el = doc.find(f"{ns}title")
+            if title_el is not None:
+                title = "".join(title_el.itertext()).strip()
+
+            passage = ""
+            passage_el = doc.find(f".//{ns}passage")
+            if passage_el is not None:
+                passage = "".join(passage_el.itertext()).strip()
+
+            # Try to get image dimensions from image-properties or similar
+            width = 0
+            height = 0
+            for prop in doc.iter():
+                tag = prop.tag.replace(ns, "")
+                if tag == "image-properties":
+                    w_attr = prop.get("width") or prop.findtext(f"{ns}width") or ""
+                    h_attr = prop.get("height") or prop.findtext(f"{ns}height") or ""
+                    try:
+                        width = int(w_attr) if w_attr else 0
+                        height = int(h_attr) if h_attr else 0
+                    except ValueError:
+                        pass
+
+            results.append({
+                "url": url_el.text,
+                "title": title,
+                "passage": passage,
+                "width": width,
+                "height": height,
+            })
+
+        if results:
+            print(f"[Yandex Search] Parsed {len(results)} results with metadata")
+        else:
+            # Fallback: just grab URLs like before
+            urls = []
             for elem in root.iter():
                 if elem.tag.endswith("}url") or elem.tag == "url":
                     if elem.text and elem.text.startswith("http"):
-                        urls_found.append(elem.text)
-            if urls_found:
-                print(f"[Yandex Search] Parsed {len(urls_found)} image URLs from XML")
-                return urls_found
-            print(f"[Yandex Search] No URLs in XML. Root: {root.tag}, children: {[c.tag for c in root][:10]}")
-        except ET.ParseError as e:
-            print(f"[Yandex Search] XML parse error: {e}")
-            print(f"[Yandex Search] XML preview: {xml_text[:300]}")
-        return []
+                        urls.append(elem.text)
+            if urls:
+                print(f"[Yandex Search] Fallback: parsed {len(urls)} URLs without metadata")
+                results = [{"url": u, "title": "", "passage": "", "width": 0, "height": 0} for u in urls]
+            else:
+                print(f"[Yandex Search] No URLs in XML. Root: {root.tag}")
+
+        return results
 
     async def generate_image(self, prompt: str, output_directory: str) -> str | None:
         """Generate image with YandexART. Returns file path or None."""
