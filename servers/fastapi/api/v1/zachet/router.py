@@ -219,7 +219,7 @@ async def _generate_from_document_task(
             await sql_session.commit()
 
         # 1. Extract text from document
-        log.begin("extract_text", file_path=file_path)
+        log.begin("Извлечение текста из документа (DocumentsLoader)", file_path=file_path)
         documents_loader = DocumentsLoader(file_paths=[file_path])
         await documents_loader.load_documents()
         documents = documents_loader.documents
@@ -257,7 +257,7 @@ async def _generate_from_document_task(
                 (n_slides - needed_toc_count) / 10
             )
 
-        log.begin("generate_outlines_llm1", n_slides=n_slides_to_generate, language=language, tone=tone)
+        log.begin("LLM #1: Генерация outlines (generate_zachet_outlines)", n_slides=n_slides_to_generate, language=language, tone=tone)
         presentation_outlines_text = ""
         async for chunk in generate_zachet_outlines(
             content,
@@ -298,7 +298,7 @@ async def _generate_from_document_task(
             sql_session.add(async_status)
             await sql_session.commit()
 
-        log.begin("select_layout", template=template)
+        log.begin("Выбор шаблона и структуры слайдов (get_layout_by_name)", template=template)
         layout_model = await get_layout_by_name(template)
         total_slide_layouts = len(layout_model.slides)
 
@@ -390,7 +390,7 @@ async def _generate_from_document_task(
             sql_session.add(async_status)
             await sql_session.commit()
 
-        log.begin("generate_slide_content_llm3", total_slides=len(presentation_structure.slides))
+        log.begin("LLM #3: Генерация контента слайдов (get_slide_content_from_type_and_outline)", total_slides=len(presentation_structure.slides))
         image_generation_service = ImageGenerationService(get_images_directory())
         slides: List[SlideModel] = []
         generated_assets = []
@@ -439,12 +439,10 @@ async def _generate_from_document_task(
                     content=slide_content,
                 )
                 slides.append(slide)
-                log.add_substep("generate_slide_content_llm3", {
+                log.add_substep("LLM #3: Генерация контента слайдов (get_slide_content_from_type_and_outline)", {
                     "slide_index": i,
                     "layout": slide_layouts[i].id,
-                    "content_keys": list(slide_content.keys()),
-                    "image_prompt": slide_content.get("image", {}).get("__image_prompt__") if isinstance(slide_content.get("image"), dict) else None,
-                    "image_type": slide_content.get("image", {}).get("__image_type__") if isinstance(slide_content.get("image"), dict) else None,
+                    "content": slide_content,
                 })
 
         log.end(slides_generated=len(slides))
@@ -456,7 +454,7 @@ async def _generate_from_document_task(
             sql_session.add(async_status)
             await sql_session.commit()
 
-        log.begin("refine_image_prompts_llm4")
+        log.begin("LLM #4: Уточнение поисковых запросов для картинок (generate_image_prompt)")
         await _refine_image_prompts(slides, presentation_outlines, document_summary)
         log.end(refined_slides=[
             {"index": i, "image_prompt": s.content.get("image", {}).get("__image_prompt__"), "image_type": s.content.get("image", {}).get("__image_type__")}
@@ -464,7 +462,7 @@ async def _generate_from_document_task(
         ])
 
         # 5.2. Clamp to exactly 1 illustration (YandexART infographic)
-        log.begin("clamp_illustrations")
+        log.begin("Выбор слайда для инфографики (_clamp_illustration_count)")
         _clamp_illustration_count(slides)
         log.end(result=[
             {"index": i, "type": s.content.get("image", {}).get("__image_type__")}
@@ -481,13 +479,13 @@ async def _generate_from_document_task(
             await sql_session.commit()
 
         # Fetch assets sequentially to avoid rate limits
-        log.begin("fetch_assets")
+        log.begin("Загрузка картинок и иконок (process_slide_and_fetch_assets → Yandex)")
         for slide in slides:
             assets = await process_slide_and_fetch_assets(image_generation_service, slide)
             generated_assets.extend(assets)
             image_info = slide.content.get("image") if isinstance(slide.content.get("image"), dict) else None
             if image_info:
-                log.add_substep("fetch_assets", {
+                log.add_substep("Загрузка картинок и иконок (process_slide_and_fetch_assets → Yandex)", {
                     "slide_index": slide.index,
                     "image_prompt": image_info.get("__image_prompt__"),
                     "image_type": image_info.get("__image_type__"),
@@ -508,7 +506,7 @@ async def _generate_from_document_task(
             sql_session.add(async_status)
             await sql_session.commit()
 
-        log.begin("export_pptx")
+        log.begin("Экспорт в PPTX (export_presentation → Puppeteer)")
         presentation_and_path = await export_presentation(
             presentation_id, presentation.title or str(uuid.uuid4()), "pptx"
         )
