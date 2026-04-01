@@ -135,6 +135,16 @@ function StepCard({ step, index }: { step: StepDetail; index: number }) {
     )
 }
 
+function downloadJson(data: any, filename: string) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+}
+
 function GenerationDetail({ logId }: { logId: string }) {
     const [detail, setDetail] = useState<LogDetail | null>(null)
     const [loading, setLoading] = useState(true)
@@ -157,6 +167,12 @@ function GenerationDetail({ logId }: { logId: string }) {
                 <span>Всего: <span className="font-mono font-bold">{formatDuration(detail.total_duration_ms)}</span></span>
                 <span>Начало: {formatTime(detail.started_at)}</span>
                 <span>Конец: {formatTime(detail.finished_at)}</span>
+                <button
+                    onClick={() => downloadJson(detail, `generation-${detail.presentation_id || logId}.json`)}
+                    className="ml-auto px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-300 hover:border-blue-400 rounded transition"
+                >
+                    Скачать JSON
+                </button>
             </div>
             {detail.steps.map((step, i) => (
                 <StepCard key={i} step={step} index={i} />
