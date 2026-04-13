@@ -108,6 +108,10 @@ const setupUserConfigFromEnv = () => {
     CODEX_REFRESH_TOKEN: existingConfig.CODEX_REFRESH_TOKEN,
     CODEX_TOKEN_EXPIRES: existingConfig.CODEX_TOKEN_EXPIRES,
     CODEX_ACCOUNT_ID: existingConfig.CODEX_ACCOUNT_ID,
+    YANDEX_CLOUD_FOLDER_ID: process.env.YANDEX_CLOUD_FOLDER_ID || existingConfig.YANDEX_CLOUD_FOLDER_ID,
+    YANDEX_API_KEY: process.env.YANDEX_API_KEY || existingConfig.YANDEX_API_KEY,
+    API_SECRET_KEY: process.env.API_SECRET_KEY || existingConfig.API_SECRET_KEY,
+    WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || existingConfig.WEBHOOK_SECRET,
   };
 
   writeFileSync(userConfigPath, JSON.stringify(userConfig));
@@ -191,8 +195,25 @@ const startServers = async () => {
   process.exit(exitCode);
 };
 
+// Prepare nginx config with dynamic PORT
+const prepareNginxConfig = () => {
+  const nginxPort = process.env.PORT || "80";
+  const nginxConfPath = "/etc/nginx/nginx.conf";
+
+  try {
+    let conf = readFileSync(nginxConfPath, "utf8");
+    conf = conf.replace("${NGINX_PORT}", nginxPort);
+    writeFileSync(nginxConfPath, conf);
+    console.log(`Nginx configured to listen on port ${nginxPort}`);
+  } catch (err) {
+    console.error("Failed to update nginx config:", err);
+  }
+};
+
 // Start nginx service
 const startNginx = () => {
+  prepareNginxConfig();
+
   const nginxProcess = spawn("service", ["nginx", "start"], {
     stdio: "inherit",
     env: process.env,
@@ -219,6 +240,9 @@ const main = async () => {
   if (canChangeKeys) {
     setupUserConfigFromEnv();
   }
+
+  // Set NGINX_PORT before spawning servers (Next.js overrides PORT to its own port)
+  process.env.NGINX_PORT = process.env.PORT || "80";
 
   startServers();
   startNginx();

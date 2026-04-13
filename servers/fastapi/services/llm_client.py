@@ -1296,35 +1296,48 @@ class LLMClient:
     ):
         client: AsyncAnthropic = self._client
 
-        tool_calls: List[AnthropicToolCall] = []
-        async with client.messages.stream(
-            model=model,
-            system=self._get_system_prompt(messages),
-            messages=[
-                message.model_dump()
-                for message in self._get_anthropic_messages(messages)
-            ],
-            max_tokens=max_tokens or 4000,
-            tools=tools,
-        ) as stream:
-            async for event in stream:
-                event: AnthropicMessageStreamEvent = event
+        max_retries = 3
+        for attempt in range(max_retries):
+            yielded = False
+            try:
+                tool_calls: List[AnthropicToolCall] = []
+                async with client.messages.stream(
+                    model=model,
+                    system=self._get_system_prompt(messages),
+                    messages=[
+                        message.model_dump()
+                        for message in self._get_anthropic_messages(messages)
+                    ],
+                    max_tokens=max_tokens or 4000,
+                    tools=tools,
+                ) as stream:
+                    async for event in stream:
+                        event: AnthropicMessageStreamEvent = event
 
-                if event.type == "text":
-                    yield event.text
+                        if event.type == "text":
+                            yielded = True
+                            yield event.text
 
-                if (
-                    event.type == "content_block_stop"
-                    and event.content_block.type == "tool_use"
-                ):
-                    tool_calls.append(
-                        AnthropicToolCall(
-                            id=event.content_block.id,
-                            type=event.content_block.type,
-                            name=event.content_block.name,
-                            input=event.content_block.input,
-                        )
-                    )
+                        if (
+                            event.type == "content_block_stop"
+                            and event.content_block.type == "tool_use"
+                        ):
+                            tool_calls.append(
+                                AnthropicToolCall(
+                                    id=event.content_block.id,
+                                    type=event.content_block.type,
+                                    name=event.content_block.name,
+                                    input=event.content_block.input,
+                                )
+                            )
+                break  # success
+            except Exception as e:
+                if not yielded and "overloaded" in str(e).lower() and attempt < max_retries - 1:
+                    wait = 10 * (attempt + 1)
+                    print(f"Anthropic overloaded, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(wait)
+                    continue
+                raise
 
         if tool_calls:
             tool_call_messages = (
@@ -2117,56 +2130,69 @@ class LLMClient:
     ) -> AsyncGenerator[str, None]:
         client: AsyncAnthropic = self._client
 
-        tool_calls: List[AnthropicToolCall] = []
-        has_response_schema_tool_call = False
-        async with client.messages.stream(
-            model=model,
-            system=self._get_system_prompt(messages),
-            messages=[
-                message.model_dump()
-                for message in self._get_anthropic_messages(messages)
-            ],
-            max_tokens=max_tokens or 4000,
-            tools=[
-                {
-                    "name": "ResponseSchema",
-                    "description": "A response to the user's message",
-                    "input_schema": response_format,
-                },
-                *(tools or []),
-            ],
-        ) as stream:
-            is_response_schema_tool_call_started = False
-            async for event in stream:
-                event: AnthropicMessageStreamEvent = event
+        max_retries = 3
+        for attempt in range(max_retries):
+            yielded = False
+            try:
+                tool_calls: List[AnthropicToolCall] = []
+                has_response_schema_tool_call = False
+                async with client.messages.stream(
+                    model=model,
+                    system=self._get_system_prompt(messages),
+                    messages=[
+                        message.model_dump()
+                        for message in self._get_anthropic_messages(messages)
+                    ],
+                    max_tokens=max_tokens or 4000,
+                    tools=[
+                        {
+                            "name": "ResponseSchema",
+                            "description": "A response to the user's message",
+                            "input_schema": response_format,
+                        },
+                        *(tools or []),
+                    ],
+                ) as stream:
+                    is_response_schema_tool_call_started = False
+                    async for event in stream:
+                        event: AnthropicMessageStreamEvent = event
 
-                if (
-                    event.type == "content_block_start"
-                    and event.content_block.type == "tool_use"
-                ):
-                    if event.content_block.name == "ResponseSchema":
-                        has_response_schema_tool_call = True
-                        is_response_schema_tool_call_started = True
+                        if (
+                            event.type == "content_block_start"
+                            and event.content_block.type == "tool_use"
+                        ):
+                            if event.content_block.name == "ResponseSchema":
+                                has_response_schema_tool_call = True
+                                is_response_schema_tool_call_started = True
 
-                if (
-                    event.type == "content_block_delta"
-                    and event.delta.type == "input_json_delta"
-                    and is_response_schema_tool_call_started
-                ):
-                    yield event.delta.partial_json
+                        if (
+                            event.type == "content_block_delta"
+                            and event.delta.type == "input_json_delta"
+                            and is_response_schema_tool_call_started
+                        ):
+                            yielded = True
+                            yield event.delta.partial_json
 
-                if (
-                    event.type == "content_block_stop"
-                    and event.content_block.type == "tool_use"
-                ):
-                    tool_calls.append(
-                        AnthropicToolCall(
-                            id=event.content_block.id,
-                            type=event.content_block.type,
-                            name=event.content_block.name,
-                            input=event.content_block.input,
-                        )
-                    )
+                        if (
+                            event.type == "content_block_stop"
+                            and event.content_block.type == "tool_use"
+                        ):
+                            tool_calls.append(
+                                AnthropicToolCall(
+                                    id=event.content_block.id,
+                                    type=event.content_block.type,
+                                    name=event.content_block.name,
+                                    input=event.content_block.input,
+                                )
+                            )
+                break  # success
+            except Exception as e:
+                if not yielded and "overloaded" in str(e).lower() and attempt < max_retries - 1:
+                    wait = 10 * (attempt + 1)
+                    print(f"Anthropic overloaded, retrying in {wait}s (attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(wait)
+                    continue
+                raise
 
         if tool_calls and not has_response_schema_tool_call:
             tool_call_messages = (

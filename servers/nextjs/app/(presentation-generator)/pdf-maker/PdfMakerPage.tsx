@@ -159,7 +159,10 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
                   presentationData.slides.map((slide: any, index: number) => (
                     // [data-speaker-note] is used to extract the speaker note from the slide for export to pptx
                     <div key={index} className="w-full" data-speaker-note={slide.speaker_note}>
-                      <V1ContentRender slide={slide} isEditMode={true} theme={null}
+                      {/* isEditMode must be false — edit mode wraps text in TiptapTextReplacer
+                          which async-replaces DOM elements, causing Puppeteer to capture
+                          zero-height empty containers instead of actual text content. */}
+                      <V1ContentRender slide={slide} isEditMode={false} theme={null}
                       />
                     </div>
                   ))}

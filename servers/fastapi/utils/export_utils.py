@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import aiohttp
@@ -11,10 +12,22 @@ from models.presentation_and_path import PresentationAndPath
 from services.pptx_presentation_creator import PptxPresentationCreator
 from services.temp_file_service import TEMP_FILE_SERVICE
 from utils.asset_directory_utils import get_exports_directory
+from utils.get_env import get_frontend_url_env
 import uuid
+
+# Limit concurrent Puppeteer exports (each spawns a Chromium browser)
+_export_semaphore = asyncio.Semaphore(2)
 
 
 async def export_presentation(
+    presentation_id: uuid.UUID, title: str, export_as: Literal["pptx", "pdf"]
+) -> PresentationAndPath:
+    async with _export_semaphore:
+        print(f"[Export] Acquired semaphore for {presentation_id} ({export_as})")
+        return await _do_export(presentation_id, title, export_as)
+
+
+async def _do_export(
     presentation_id: uuid.UUID, title: str, export_as: Literal["pptx", "pdf"]
 ) -> PresentationAndPath:
     if export_as == "pptx":
@@ -22,7 +35,7 @@ async def export_presentation(
         # Get the converted PPTX model from the Next.js service
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                f"http://localhost/api/presentation_to_pptx_model?id={presentation_id}"
+                f"{get_frontend_url_env()}/api/presentation_to_pptx_model?id={presentation_id}"
             ) as response:
                 if response.status != 200:
                     error_text = await response.text()
@@ -53,7 +66,7 @@ async def export_presentation(
     else:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                "http://localhost/api/export-as-pdf",
+                f"{get_frontend_url_env()}/api/export-as-pdf",
                 json={
                     "id": str(presentation_id),
                     "title": sanitize_filename(title or str(uuid.uuid4())),

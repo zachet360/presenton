@@ -16,6 +16,7 @@ from utils.get_env import (
 from utils.get_env import get_pixabay_api_key_env
 from utils.get_env import get_comfyui_url_env
 from utils.get_env import get_comfyui_workflow_env
+from services.wikimedia_provider import search_wikimedia
 from utils.image_provider import (
     is_gpt_image_1_5_selected,
     is_image_generation_disabled,
@@ -25,6 +26,8 @@ from utils.image_provider import (
     is_nanobanana_pro_selected,
     is_dalle3_selected,
     is_comfyui_selected,
+    is_tiered_selected,
+    is_yandex_selected,
 )
 import uuid
 
@@ -39,7 +42,11 @@ class ImageGenerationService:
         if self.is_image_generation_disabled:
             return None
 
-        if is_pixabay_selected():
+        if is_tiered_selected():
+            return None  # tiered uses fetch_image_tiered directly
+        elif is_yandex_selected():
+            return None  # yandex uses fetch_image_yandex directly
+        elif is_pixabay_selected():
             return self.get_image_from_pixabay
         elif is_pixels_selected():
             return self.get_image_from_pexels
@@ -58,17 +65,26 @@ class ImageGenerationService:
     def is_stock_provider_selected(self):
         return is_pixels_selected() or is_pixabay_selected()
 
-    async def generate_image(self, prompt: ImagePrompt) -> str | ImageAsset:
+    async def generate_image(self, prompt: ImagePrompt, image_type: str = None, image_orientation: str = None) -> str | ImageAsset:
         """
         Generates an image based on the provided prompt.
         - If no image generation function is available, returns a placeholder image.
         - If the stock provider is selected, it uses the prompt directly,
         otherwise it uses the full image prompt with theme.
         - Output Directory is used for saving the generated image not the stock provider.
+        - If tiered provider is selected, routes based on image_type.
         """
         if self.is_image_generation_disabled:
             print("Image generation is disabled. Using placeholder image.")
             return "/static/images/placeholder.jpg"
+
+        # Tiered provider: route by image_type
+        if is_tiered_selected():
+            return await self.fetch_image_tiered(prompt, image_type or "photo")
+
+        # Yandex provider: search + YandexART
+        if is_yandex_selected():
+            return await self.fetch_image_yandex(prompt, image_type or "photo", image_orientation)
 
         if not self.image_gen_func:
             print("No image generation function found. Using placeholder image.")
@@ -103,6 +119,138 @@ class ImageGenerationService:
         except Exception as e:
             print(f"Error generating image: {e}")
             return "/static/images/placeholder.jpg"
+
+    async def fetch_image_tiered(self, prompt: ImagePrompt, image_type: str) -> str | ImageAsset:
+        """Tiered image fetching based on __image_type__"""
+        image_prompt = prompt.get_image_prompt(with_theme=False)
+        print(f"Tiered image fetch: type={image_type} prompt={image_prompt}")
+
+        try:
+            if image_type == "illustration":
+                # AI generation via OpenAI GPT Image 1.5
+                image_path = await self.generate_image_openai_gpt_image_1_5(
+                    prompt.get_image_prompt(with_theme=True),
+                    self.output_directory,
+                )
+                if image_path and os.path.exists(image_path):
+                    return ImageAsset(
+                        path=image_path,
+                        is_uploaded=False,
+                        extras={"prompt": prompt.prompt, "theme_prompt": prompt.theme_prompt, "image_type": image_type},
+                    )
+
+            elif image_type == "diagram":
+                # Try Wikimedia Commons first (free, great for scientific diagrams)
+                result = await search_wikimedia(image_prompt)
+                if result:
+                    return result
+                # Fallback: Pixabay with image_type=illustration
+                result = await self.get_image_from_pixabay_enhanced(
+                    image_prompt,
+                    image_type="illustration",
+                    category="science",
+                )
+                if result:
+                    return result
+
+            elif image_type == "photo":
+                # Pixabay with enhanced params
+                result = await self.get_image_from_pixabay_enhanced(
+                    image_prompt,
+                    image_type="photo",
+                    orientation="horizontal",
+                    min_width=1280,
+                    order="popular",
+                )
+                if result:
+                    return result
+                # Fallback: Wikimedia Commons
+                result = await search_wikimedia(image_prompt)
+                if result:
+                    return result
+
+            # Ultimate fallback: basic pixabay
+            result = await self.get_image_from_pixabay_enhanced(image_prompt)
+            if result:
+                return result
+
+        except Exception as e:
+            print(f"Tiered image fetch error: {e}")
+
+        return "/static/images/placeholder.jpg"
+
+    async def fetch_image_yandex(self, prompt: ImagePrompt, image_type: str, image_orientation: str = None) -> str | ImageAsset:
+        """Yandex provider: illustration → YandexART, others → Yandex Image Search."""
+        from services.yandex_image_service import YandexImageService
+
+        image_prompt = prompt.get_image_prompt(with_theme=image_type == "illustration")
+        orientation = image_orientation if image_orientation is not None else "IMAGE_ORIENTATION_HORIZONTAL"
+        print(f"Yandex image fetch: type={image_type} orientation={orientation} prompt={image_prompt}")
+
+        yandex = YandexImageService()
+        try:
+            result = await yandex.get_image(image_prompt, self.output_directory, image_type, orientation)
+            if result:
+                if result.startswith("http"):
+                    return result
+                elif os.path.exists(result):
+                    return ImageAsset(
+                        path=result,
+                        is_uploaded=False,
+                        extras={
+                            "prompt": prompt.prompt,
+                            "theme_prompt": prompt.theme_prompt,
+                            "image_type": image_type,
+                        },
+                    )
+        except Exception as e:
+            print(f"Yandex image fetch error: {e}")
+
+        return "/static/images/placeholder.jpg"
+
+    async def get_image_from_pixabay_enhanced(
+        self,
+        prompt: str,
+        image_type: str = "all",
+        category: str = None,
+        orientation: str = "horizontal",
+        min_width: int = 1280,
+        order: str = "popular",
+    ) -> str | None:
+        """Enhanced Pixabay search with additional filtering parameters."""
+        api_key = get_pixabay_api_key_env()
+        if not api_key:
+            return None
+
+        params = {
+            "key": api_key,
+            "q": prompt,
+            "image_type": image_type,
+            "orientation": orientation,
+            "min_width": min_width,
+            "lang": "en",
+            "order": order,
+            "safesearch": "true",
+            "per_page": "5",
+        }
+        if category:
+            params["category"] = category
+
+        try:
+            async with aiohttp.ClientSession(trust_env=True) as session:
+                async with session.get(
+                    "https://pixabay.com/api/",
+                    params=params,
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as response:
+                    data = await response.json()
+                    hits = data.get("hits", [])
+                    if hits:
+                        return hits[0]["largeImageURL"]
+        except Exception as e:
+            print(f"Pixabay enhanced search error: {e}")
+
+        return None
 
     async def generate_image_openai(
         self, prompt: str, output_directory: str, model: str, quality: str

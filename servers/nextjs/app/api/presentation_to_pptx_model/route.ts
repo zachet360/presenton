@@ -95,12 +95,52 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
 
   const page = await browser.newPage();
 
+  if (process.env.API_SECRET_KEY) {
+    await page.setExtraHTTPHeaders({
+      'Authorization': `Bearer ${process.env.API_SECRET_KEY}`,
+    });
+  }
+
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
-  page.setDefaultNavigationTimeout(300000);
-  page.setDefaultTimeout(300000);
-  await page.goto(`http://localhost/pdf-maker?id=${id}`, {
-    waitUntil: "networkidle0",
-    timeout: 300000,
+  page.setDefaultNavigationTimeout(120000);
+  page.setDefaultTimeout(120000);
+
+  // Abort image requests that take too long (prevents hanging on dead servers)
+  await page.setRequestInterception(true);
+  const pendingRequests = new Map<string, NodeJS.Timeout>();
+  page.on('request', (req) => {
+    const resourceType = req.resourceType();
+    if (resourceType === 'image' || resourceType === 'media') {
+      const timeout = setTimeout(() => {
+        try { req.abort('timedout'); } catch {}
+        pendingRequests.delete(req.url());
+        console.log(`[Puppeteer] Aborted slow image: ${req.url().slice(0, 80)}`);
+      }, 10000);
+      pendingRequests.set(req.url(), timeout);
+    }
+    try { req.continue(); } catch {}
+  });
+  page.on('requestfinished', (req) => {
+    const t = pendingRequests.get(req.url());
+    if (t) { clearTimeout(t); pendingRequests.delete(req.url()); }
+  });
+  page.on('requestfailed', (req) => {
+    const t = pendingRequests.get(req.url());
+    if (t) { clearTimeout(t); pendingRequests.delete(req.url()); }
+    console.error(`[Puppeteer] Request failed: ${req.url().slice(0, 80)} - ${req.failure()?.errorText}`);
+  });
+  page.on('response', (res) => {
+    const url = res.url();
+    if (url.includes('/api/')) {
+      console.log(`[Puppeteer] API response: ${res.status()} ${url}`);
+    }
+  });
+
+  const targetUrl = `http://localhost:${process.env.NGINX_PORT || process.env.PORT || '80'}/pdf-maker?id=${id}`;
+  console.log(`[Puppeteer] Navigating to: ${targetUrl}`);
+  await page.goto(targetUrl, {
+    waitUntil: "networkidle2",
+    timeout: 120000,
   });
   return [browser, page];
 }
@@ -248,15 +288,33 @@ async function getSlidesAttributes(
 
 async function getSlidesAndSpeakerNotes(page: Page) {
   const slides_wrapper = await getSlidesWrapper(page);
+
+  // Wait for React to finish rendering slides (not just loading skeletons)
+  await page.waitForFunction(
+    () => {
+      const wrapper = document.getElementById('presentation-slides-wrapper');
+      if (!wrapper) return false;
+      return wrapper.querySelectorAll('div[data-speaker-note]').length > 0;
+    },
+    { timeout: 60000 }
+  );
+
   const speakerNotes = await getSpeakerNotes(slides_wrapper);
-  const slides = await slides_wrapper.$$(":scope > div > div");
+  const slides = await slides_wrapper.$$("div[data-speaker-note]");
   return { slides, speakerNotes };
 }
 
 async function getSlidesWrapper(page: Page): Promise<ElementHandle<Element>> {
+  try {
+    await page.waitForSelector("#presentation-slides-wrapper", { timeout: 60000 });
+  } catch {
+    const url = page.url();
+    const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) || "empty");
+    throw new ApiError(`Presentation slides not found. Page URL: ${url}. Body: ${bodyText}`);
+  }
   const slides_wrapper = await page.$("#presentation-slides-wrapper");
   if (!slides_wrapper) {
-    throw new ApiError("Presentation slides not found");
+    throw new ApiError("Presentation slides not found after waitForSelector");
   }
   return slides_wrapper;
 }

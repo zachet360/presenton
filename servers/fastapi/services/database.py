@@ -20,6 +20,7 @@ from models.sql.slide import SlideModel
 from models.sql.presentation_layout_code import PresentationLayoutCodeModel
 from models.sql.template import TemplateModel
 from models.sql.webhook_subscription import WebhookSubscription
+from models.sql.generation_log import GenerationLogModel
 from utils.db_utils import get_database_url_and_connect_args
 
 
@@ -64,6 +65,7 @@ async def create_db_and_tables():
                     TemplateModel.__table__,
                     WebhookSubscription.__table__,
                     AsyncPresentationGenerationTaskModel.__table__,
+                    GenerationLogModel.__table__,
                 ],
             )
         )

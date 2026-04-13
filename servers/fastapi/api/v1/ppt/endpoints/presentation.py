@@ -6,9 +6,10 @@ import os
 import random
 import traceback
 from typing import Annotated, List, Literal, Optional, Tuple
+import aiohttp
 import dirtyjson
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Path, Request
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Path, Request, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -282,10 +283,8 @@ async def stream_presentation(
         layout = presentation.get_layout()
         outline = presentation.get_presentation_outline()
 
-        # These tasks will be gathered and awaited after all slides are generated
-        async_assets_generation_tasks = []
-
         slides: List[SlideModel] = []
+        generated_assets = []
         yield SSEResponse(
             event="response",
             data=json.dumps({"type": "chunk", "chunk": '{ "slides": [ '}),
@@ -319,10 +318,9 @@ async def stream_presentation(
             # This will mutate slide and add placeholder assets
             process_slide_add_placeholder_assets(slide)
 
-            # This will mutate slide - start task immediately so it runs in parallel with next slide LLM generation
-            async_assets_generation_tasks.append(
-                asyncio.create_task(process_slide_and_fetch_assets(image_generation_service, slide))
-            )
+            # Fetch assets sequentially to avoid rate limits
+            assets = await process_slide_and_fetch_assets(image_generation_service, slide)
+            generated_assets.extend(assets)
 
             yield SSEResponse(
                 event="response",
@@ -333,11 +331,6 @@ async def stream_presentation(
             event="response",
             data=json.dumps({"type": "chunk", "chunk": " ] }"}),
         ).to_string()
-
-        generated_assets_lists = await asyncio.gather(*async_assets_generation_tasks)
-        generated_assets = []
-        for assets_list in generated_assets_lists:
-            generated_assets.extend(assets_list)
 
         # Moved this here to make sure new slides are generated before deleting the old ones
         await sql_session.execute(
@@ -679,15 +672,15 @@ async def generate_presentation_handler(
             await sql_session.commit()
 
         image_generation_service = ImageGenerationService(get_images_directory())
-        async_assets_generation_tasks = []
 
-        # 7. Generate slide content concurrently (batched), then build slides and fetch assets
+        # 7. Generate slide content concurrently (batched), then build slides and fetch assets sequentially
         slides: List[SlideModel] = []
+        generated_assets = []
 
         slide_layout_indices = presentation_structure.slides
         slide_layouts = [layout_model.slides[idx] for idx in slide_layout_indices]
 
-        # Schedule slide content generation and asset fetching in batches of 10
+        # Schedule slide content generation in batches of 10
         batch_size = 10
         for start in range(0, len(slide_layouts), batch_size):
             end = min(start + batch_size, len(slide_layouts))
@@ -709,7 +702,6 @@ async def generate_presentation_handler(
             batch_contents: List[dict] = await asyncio.gather(*content_tasks)
 
             # Build slides for this batch
-            batch_slides: List[SlideModel] = []
             for offset, slide_content in enumerate(batch_contents):
                 i = start + offset
                 slide_layout = slide_layouts[i]
@@ -722,14 +714,6 @@ async def generate_presentation_handler(
                     content=slide_content,
                 )
                 slides.append(slide)
-                batch_slides.append(slide)
-
-            # Start asset fetch tasks immediately so they run in parallel with next batch's LLM calls
-            asset_tasks = [
-                asyncio.create_task(process_slide_and_fetch_assets(image_generation_service, slide))
-                for slide in batch_slides
-            ]
-            async_assets_generation_tasks.extend(asset_tasks)
 
         if async_status:
             async_status.message = "Fetching assets for slides"
@@ -737,11 +721,10 @@ async def generate_presentation_handler(
             sql_session.add(async_status)
             await sql_session.commit()
 
-        # Run all asset tasks concurrently while batches may still be generating content
-        generated_assets_list = await asyncio.gather(*async_assets_generation_tasks)
-        generated_assets = []
-        for assets_list in generated_assets_list:
-            generated_assets.extend(assets_list)
+        # Fetch assets sequentially to avoid rate limits
+        for slide in slides:
+            assets = await process_slide_and_fetch_assets(image_generation_service, slide)
+            generated_assets.extend(assets)
 
         # 8. Save PresentationModel and Slides
         sql_session.add(presentation)

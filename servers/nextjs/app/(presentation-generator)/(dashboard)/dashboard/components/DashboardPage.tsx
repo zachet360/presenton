@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import { DashboardApi } from "@/app/(presentation-generator)/services/api/dashboard";
 import { PresentationGrid } from "@/app/(presentation-generator)/(dashboard)/dashboard/components/PresentationGrid";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ScrollText } from "lucide-react";
 
 
 
@@ -54,8 +54,14 @@ const DashboardPage: React.FC = () => {
             Slide Presentations
           </h3>
           <div className="flex  gap-2.5 max-sm:w-full max-md:justify-center max-sm:flex-wrap">
-
-
+            <Link
+              href="/debug/generations"
+              className="inline-flex items-center justify-center rounded-full p-2.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition"
+              aria-label="Generation logs"
+              title="Логи генерации"
+            >
+              <ScrollText className="w-5 h-5" />
+            </Link>
 
             <Link
               href="/generate"

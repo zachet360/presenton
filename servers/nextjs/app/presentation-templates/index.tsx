@@ -165,6 +165,18 @@ import TitleDescriptionFourChartsSixBulletsLayout, { Schema as TitleDescriptionF
 
 
 
+// Zachet templates
+import ZachetTitleSlideLayout, { Schema as ZachetTitleSchema, layoutId as ZachetTitleId, layoutName as ZachetTitleName, layoutDescription as ZachetTitleDesc } from "./zachet/TitleSlideLayout";
+import ZachetBulletsSlideLayout, { Schema as ZachetBulletsSchema, layoutId as ZachetBulletsId, layoutName as ZachetBulletsName, layoutDescription as ZachetBulletsDesc } from "./zachet/BulletsSlideLayout";
+import ZachetImageSlideLayout, { Schema as ZachetImageSchema, layoutId as ZachetImageId, layoutName as ZachetImageName, layoutDescription as ZachetImageDesc } from "./zachet/ImageSlideLayout";
+import ZachetComparisonSlideLayout, { Schema as ZachetComparisonSchema, layoutId as ZachetComparisonId, layoutName as ZachetComparisonName, layoutDescription as ZachetComparisonDesc } from "./zachet/ComparisonSlideLayout";
+import ZachetMetricsSlideLayout, { Schema as ZachetMetricsSchema, layoutId as ZachetMetricsId, layoutName as ZachetMetricsName, layoutDescription as ZachetMetricsDesc } from "./zachet/MetricsSlideLayout";
+import ZachetClosingSlideLayout, { Schema as ZachetClosingSchema, layoutId as ZachetClosingId, layoutName as ZachetClosingName, layoutDescription as ZachetClosingDesc } from "./zachet/ClosingSlideLayout";
+import ZachetGoalSlideLayout, { Schema as ZachetGoalSchema, layoutId as ZachetGoalId, layoutName as ZachetGoalName, layoutDescription as ZachetGoalDesc } from "./zachet/GoalSlideLayout";
+import ZachetTasksSlideLayout, { Schema as ZachetTasksSchema, layoutId as ZachetTasksId, layoutName as ZachetTasksName, layoutDescription as ZachetTasksDesc } from "./zachet/TasksSlideLayout";
+import ZachetProblemSlideLayout, { Schema as ZachetProblemSchema, layoutId as ZachetProblemId, layoutName as ZachetProblemName, layoutDescription as ZachetProblemDesc } from "./zachet/ProblemSlideLayout";
+import ZachetPerspectivesSlideLayout, { Schema as ZachetPerspectivesSchema, layoutId as ZachetPerspectivesId, layoutName as ZachetPerspectivesName, layoutDescription as ZachetPerspectivesDesc } from "./zachet/PerspectivesSlideLayout";
+
 // TODO: Step 2: Import template settings Here (like the ones below)
 // Template template settings
 import generalSettings from "./general/settings.json";
@@ -175,6 +187,7 @@ import neoGeneralSettings from "./neo-general/settings.json";
 import neoStandardSettings from "./neo-standard/settings.json";
 import neoModernSettings from "./neo-modern/settings.json";
 import neoSwiftSettings from "./neo-swift/settings.json";
+import zachetSettings from "./zachet/settings.json";
 
 
 // Helper to create template entry
@@ -281,6 +294,24 @@ export const neoSwiftTemplates: TemplateWithData[] = [
     createTemplateEntry(TitleDescriptionFourChartsSixBulletsLayout, TitleDescriptionFourChartsSixBulletsSchema, TitleDescriptionFourChartsSixBulletsId, TitleDescriptionFourChartsSixBulletsName, TitleDescriptionFourChartsSixBulletsDesc, "neo-swift", "TitleDescriptionFourChartsSixBulletsLayout"),
 ]
 
+// Zachet templates array (ordered: title → content → closing)
+// Zachet template order:
+// 0: Title, 1: Goal*, 2: Tasks*, 3: Problem*, 4: Bullets, 5: Image,
+// 6: Comparison, 7: Metrics, 8: Perspectives*, 9: Closing
+// * = project-only structural slides (indices 1-3, 8)
+export const zachetTemplates: TemplateWithData[] = [
+    createTemplateEntry(ZachetTitleSlideLayout, ZachetTitleSchema, ZachetTitleId, ZachetTitleName, ZachetTitleDesc, "zachet", "TitleSlideLayout"),
+    createTemplateEntry(ZachetGoalSlideLayout, ZachetGoalSchema, ZachetGoalId, ZachetGoalName, ZachetGoalDesc, "zachet", "GoalSlideLayout"),
+    createTemplateEntry(ZachetTasksSlideLayout, ZachetTasksSchema, ZachetTasksId, ZachetTasksName, ZachetTasksDesc, "zachet", "TasksSlideLayout"),
+    createTemplateEntry(ZachetProblemSlideLayout, ZachetProblemSchema, ZachetProblemId, ZachetProblemName, ZachetProblemDesc, "zachet", "ProblemSlideLayout"),
+    createTemplateEntry(ZachetBulletsSlideLayout, ZachetBulletsSchema, ZachetBulletsId, ZachetBulletsName, ZachetBulletsDesc, "zachet", "BulletsSlideLayout"),
+    createTemplateEntry(ZachetImageSlideLayout, ZachetImageSchema, ZachetImageId, ZachetImageName, ZachetImageDesc, "zachet", "ImageSlideLayout"),
+    createTemplateEntry(ZachetComparisonSlideLayout, ZachetComparisonSchema, ZachetComparisonId, ZachetComparisonName, ZachetComparisonDesc, "zachet", "ComparisonSlideLayout"),
+    createTemplateEntry(ZachetMetricsSlideLayout, ZachetMetricsSchema, ZachetMetricsId, ZachetMetricsName, ZachetMetricsDesc, "zachet", "MetricsSlideLayout"),
+    createTemplateEntry(ZachetPerspectivesSlideLayout, ZachetPerspectivesSchema, ZachetPerspectivesId, ZachetPerspectivesName, ZachetPerspectivesDesc, "zachet", "PerspectivesSlideLayout"),
+    createTemplateEntry(ZachetClosingSlideLayout, ZachetClosingSchema, ZachetClosingId, ZachetClosingName, ZachetClosingDesc, "zachet", "ClosingSlideLayout"),
+];
+
 // General templates array
 export const generalTemplates: TemplateWithData[] = [
 
@@ -344,6 +375,7 @@ export const swiftTemplates: TemplateWithData[] = [
 // TODO: Step 4: Combine all templates into a single array For UseCases (like the ones below)
 // All templates combined
 export const allLayouts: TemplateWithData[] = [
+    ...zachetTemplates,
     ...neoGeneralTemplates,
     ...neoModernTemplates,
     ...neoStandardTemplates,
@@ -352,14 +384,19 @@ export const allLayouts: TemplateWithData[] = [
     ...modernTemplates,
     ...standardTemplates,
     ...swiftTemplates,
-
-
 ];
 
 
 // TODO: Step 5: Combine all templates into a single array For UseCases (like the ones below)
 // For UseCases we need to combine all templates into a single array with settings
 export const templates: TemplateLayoutsWithSettings[] = [
+    {
+        id: "zachet",
+        name: "Zachet",
+        description: zachetSettings.description,
+        settings: zachetSettings as TemplateGroupSettings,
+        layouts: zachetTemplates,
+    },
     {
         id: "neo-general",
         name: "Neo General",
